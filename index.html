@@ -1,0 +1,1942 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quản lý nhân lực</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --surface2:#f8fafb; --ink:#17212b; --muted:#5d6b78; --line:#e1e6eb; --line2:#cfd7de;
+  --pri:#0d6670; --pri2:#0a525a; --pri-soft:#e3f1f2; --on-pri:#ffffff;
+  --warn:#a35d00; --warn-soft:#fdf1df; --bad:#b42318; --bad-soft:#fdecea; --ok:#1d7a3e; --ok-soft:#e5f4ea;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11171c; --surface:#182027; --surface2:#1d262e; --ink:#e6ecf0; --muted:#9aa8b4; --line:#2a353f; --line2:#36434e;
+    --pri:#3fb3bd; --pri2:#5cc3cc; --pri-soft:#173a3e; --on-pri:#062226;
+    --warn:#f0a840; --warn-soft:#3a2b14; --bad:#f07468; --bad-soft:#3c1d1a; --ok:#5ccf86; --ok-soft:#173a25;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11171c; --surface:#182027; --surface2:#1d262e; --ink:#e6ecf0; --muted:#9aa8b4; --line:#2a353f; --line2:#36434e;
+  --pri:#3fb3bd; --pri2:#5cc3cc; --pri-soft:#173a3e; --on-pri:#062226;
+  --warn:#f0a840; --warn-soft:#3a2b14; --bad:#f07468; --bad-soft:#3c1d1a; --ok:#5ccf86; --ok-soft:#173a25;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--pri)}
+.boot{padding:40px;text-align:center;color:var(--muted)}
+/* layout */
+.shell{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+.side{background:var(--surface);border-right:1px solid var(--line);padding:16px 12px;position:sticky;top:0;height:100vh;overflow:auto;display:flex;flex-direction:column;gap:4px}
+.brand{padding:4px 8px 14px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.brand b{display:block;font-size:15px;color:var(--pri)}
+.brand small{color:var(--muted);font-size:12px}
+.nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;color:var(--ink);border:0;background:none;text-align:left;width:100%}
+.nav:hover{background:var(--surface2)}
+.nav.on{background:var(--pri-soft);color:var(--pri);font-weight:600}
+.nav svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.side .spacer{flex:1}
+.who{border-top:1px solid var(--line);padding:10px 8px 0;font-size:13px}
+.who b{display:block}
+.who small{color:var(--muted)}
+.main{min-width:0;padding:20px 24px 60px}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.top h1{font-size:20px;margin:0;flex:1;min-width:200px}
+.demo-bar{background:var(--warn-soft);color:var(--warn);padding:6px 12px;border-radius:8px;font-size:13px;margin-bottom:12px}
+/* atoms */
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);background:var(--surface);padding:7px 12px;border-radius:8px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--pri)}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:var(--on-pri)}
+.btn.pri:hover{background:var(--pri2)}
+.btn.bad{color:var(--bad);border-color:var(--bad)}
+.btn.sm{padding:4px 8px;font-size:12.5px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px}
+.card h3{margin:0 0 12px;font-size:15px}
+.grid{display:grid;gap:14px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.kpi{padding:14px 16px}
+.kpi .v{font-size:26px;font-weight:700;line-height:1.1}
+.kpi .l{color:var(--muted);font-size:12.5px;margin-top:4px}
+.two{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.bars .row{display:grid;grid-template-columns:minmax(110px,40%) 1fr 40px;gap:8px;align-items:center;padding:3px 0;font-size:13px}
+.bars .row span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bars .track{background:var(--surface2);border-radius:4px;height:14px;overflow:hidden}
+.bars .fill{background:var(--pri);height:100%;border-radius:4px}
+.bars .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;background:var(--surface2);border:1px solid var(--line);white-space:nowrap}
+.tag.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.tag.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.tag.bad{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.tag.pri{background:var(--pri-soft);color:var(--pri);border-color:transparent}
+.muted{color:var(--muted)}
+.tbl-wrap{overflow:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table.t{border-collapse:collapse;width:100%;font-size:13px}
+table.t th{background:var(--surface2);text-align:left;font-weight:600;color:var(--muted);font-size:12px;text-transform:none;position:sticky;top:0;z-index:1}
+table.t th,table.t td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t tr.click{cursor:pointer}
+table.t tr.click:hover td{background:var(--surface2)}
+table.t td.num{text-align:right;font-variant-numeric:tabular-nums}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+input[type=text],input[type=password],input[type=date],input[type=number],input[type=email],select,textarea{border:1px solid var(--line2);background:var(--surface);border-radius:8px;padding:7px 9px;min-width:0;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--pri-soft);border-color:var(--pri)}
+input:disabled,select:disabled,textarea:disabled{background:var(--surface2);color:var(--muted)}
+textarea{min-height:64px;resize:vertical}
+.filters input,.filters select{width:auto}
+.filters input[type=text]{min-width:220px;flex:1}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
+label.f.wide{grid-column:1/-1}
+.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px 14px}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px 18px}
+.kv div{min-width:0}
+.kv .k{font-size:12px;color:var(--muted)}
+.kv .v{white-space:pre-wrap;word-break:break-word}
+.kv .wide{grid-column:1/-1}
+.tabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--line);margin:0 0 14px}
+.tab{border:0;background:none;padding:9px 12px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;font-size:13px}
+.tab.on{color:var(--pri);border-bottom-color:var(--pri);font-weight:600}
+.tab .lock{font-size:11px;opacity:.7}
+.phead{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.photo{width:96px;height:128px;border-radius:8px;background:var(--surface2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--muted);font-size:12px;text-align:center;flex:none;position:relative}
+.photo img{width:100%;height:100%;object-fit:cover}
+.photo.edit{cursor:pointer;outline:2px dashed var(--pri);outline-offset:2px}
+.phead .info{flex:1;min-width:220px}
+.phead h2{margin:0 0 6px;font-size:20px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.chips .tag{white-space:normal}
+.subt{font-size:14px;margin:18px 0 8px;display:flex;align-items:center;gap:8px}
+.subt .sp{flex:1}
+table.et{border-collapse:collapse;width:100%;font-size:13px}
+table.et th{font-size:12px;color:var(--muted);text-align:left;font-weight:600;padding:4px;background:var(--surface2)}
+table.et td{padding:3px;border-bottom:1px solid var(--line);vertical-align:top}
+table.et input,table.et select,table.et textarea{padding:5px 6px;font-size:13px}
+table.et textarea{min-height:34px}
+.x{border:0;background:none;color:var(--bad);cursor:pointer;font-size:16px;padding:4px 8px}
+.files{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.fchip{display:inline-flex;align-items:center;gap:2px;max-width:220px;border:1px solid var(--line2);background:var(--surface2);border-radius:6px;padding:1px 2px 1px 7px;font-size:12px}
+.fchip a{cursor:pointer;color:var(--pri);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none}
+.fchip a:hover{text-decoration:underline}
+.fchip .x{font-size:14px;padding:0 4px}
+.fchip.ro{padding-right:7px}
+.btn.up{padding:3px 8px;font-size:12px;color:var(--pri)}
+.btn.up svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+td.fcell{min-width:170px}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.sticky-save{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:10px 0;margin-top:14px;display:flex;gap:8px;justify-content:flex-end;z-index:2}
+/* login */
+.login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+.login .card{width:100%;max-width:400px;padding:28px}
+.login h1{font-size:20px;margin:0 0 4px;color:var(--pri)}
+.login p{margin:0 0 18px;color:var(--muted)}
+.login form{display:grid;gap:12px}
+.quick{display:grid;gap:6px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(10,20,30,.45);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:50;overflow:auto}
+.modal.hidden{display:none}
+.modal .box{background:var(--surface);border-radius:12px;width:100%;max-width:640px;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.modal .box.lg{max-width:900px}
+.modal h3{margin:0 0 14px;font-size:17px}
+.modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+#toast div{background:#17212b;color:#fff;padding:9px 14px;border-radius:8px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.25);max-width:90vw}
+#toast div.err{background:var(--bad);color:#fff}
+.drop{border:2px dashed var(--line2);border-radius:var(--r);padding:26px;text-align:center;background:var(--surface2);cursor:pointer}
+.drop:hover{border-color:var(--pri)}
+.note{background:var(--pri-soft);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.note ol{margin:6px 0 0;padding-left:20px}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink)}
+.chk input{width:auto}
+.prog{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin:8px 0}
+.prog div{height:100%;background:var(--pri);width:0}
+@media (max-width:820px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto;flex-direction:row;overflow-x:auto;padding:8px;border-right:0;border-bottom:1px solid var(--line);gap:2px}
+  .brand,.side .spacer{display:none}
+  .who{display:none}
+  .nav{width:auto;white-space:nowrap;padding:8px 10px}
+  .main{padding:14px 16px 60px}
+  .two{grid-template-columns:1fr}
+}
+@media print{.side,.top .actions,.sticky-save{display:none}.shell{display:block}}
+</style>
+</head>
+<body>
+<div id="app"><div class="boot">Đang tải…</div></div>
+<div id="modal" class="modal hidden"></div>
+<div id="toast"></div>
+<input type="file" id="filePick" hidden>
+<script type="module">
+/* =====================================================================
+   CẤU HÌNH — dán cấu hình Firebase của dự án vào đây.
+   Để trống apiKey => ứng dụng chạy ở CHẾ ĐỘ DEMO (dữ liệu mẫu, lưu trên trình duyệt).
+   ===================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCQqf_rsJVyF46VJxRYrMAX2OnP6-dwBJw",
+  authDomain: "quanlynhanluc.firebaseapp.com",
+  projectId: "quanlynhanluc",
+  storageBucket: "quanlynhanluc.firebasestorage.app",
+  messagingSenderId: "906379115511",
+  appId: "1:906379115511:web:823a666ce63f710ff64cf2"
+};
+// Tên đăng nhập không có "@" sẽ được đổi thành <tên>@LOGIN_DOMAIN khi tạo tài khoản Firebase
+const LOGIN_DOMAIN = "nhanluc.bvhaihau.local";
+// Tiền tố tên bảng dữ liệu — cho phép dùng chung project Firebase với các app khác (nl_users, nl_staff, ...)
+const COLLECTION_PREFIX = "nl_";
+// Địa chỉ Web app của Google Apps Script lưu file scan lên Google Drive (xem DriveUpload.gs). Để trống = tắt đính kèm file.
+const DRIVE_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbzKmro0NGDSqnJJGAGmVk2z7i5VQX3pjlOjIPRE_TZQ3QIe7xVYWbdEvRO8p9ENt3GzcA/exec";
+const MAX_FILE_MB = 15;
+const DEFAULT_SETTINGS = { tenBV: "Bệnh viện Đa khoa Hải Hậu", coQuanQL: "UBND Tỉnh Ninh Bình" };
+const FB_VER = "10.12.2";
+
+/* ============================ TIỆN ÍCH ============================ */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const noAccent = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
+const norm = s => noAccent(s).toLowerCase().replace(/\s+/g, " ").trim();
+const clone = o => JSON.parse(JSON.stringify(o ?? null));
+const pad = n => String(n).padStart(2, "0");
+const isoOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const nowISO = () => new Date().toISOString();
+const parseISO = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ""); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
+const fmtDate = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ""); return m ? `${m[3]}/${m[2]}/${m[1]}` : (s || ""); };
+const fmtD = d => d ? `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}` : "";
+const fmtDT = s => { if (!s) return ""; const d = new Date(s); return isNaN(d) ? s : `${fmtD(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const addMonths = (d, n) => { const x = new Date(d.getFullYear(), d.getMonth() + n, 1); x.setDate(Math.min(d.getDate(), new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate())); return x; };
+const daysTo = d => Math.round((d - new Date(new Date().toDateString())) / 864e5);
+function toISO(v) {
+  if (v == null || v === "") return "";
+  if (v instanceof Date) return isNaN(v) ? "" : isoOf(new Date(v.getTime() + 432e5));
+  if (typeof v === "number") { if (v > 20000 && v < 80000) { const d = new Date(Math.round((v - 25569) * 864e5)); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`; } return ""; }
+  const s = String(v).trim().replace(/[;,.]+$/, "");
+  let m;
+  if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s))) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`;
+  if ((m = /(\d{1,2})\s*tháng\s*(\d{1,2})\s*năm\s*(\d{4})/i.exec(s))) return `${m[3]}-${pad(m[2])}-${pad(m[1])}`;
+  if ((m = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/.exec(s))) return `${m[3]}-${pad(m[2])}-${pad(m[1])}`;
+  return "";
+}
+const titleCase = s => String(s || "").trim().toLocaleLowerCase("vi").replace(/(^|\s)(\S)/g, (a, b, c) => b + c.toLocaleUpperCase("vi"));
+const getP = (o, p) => p.split(".").reduce((a, k) => (a == null ? a : a[k]), o);
+const setP = (o, p, v) => { const ks = p.split("."); let a = o; ks.slice(0, -1).forEach(k => { if (a[k] == null || typeof a[k] !== "object") a[k] = {}; a = a[k]; }); a[ks.at(-1)] = v; };
+const randPw = () => { const c = "abcdefghjkmnpqrstuvwxyz23456789"; let s = ""; for (let i = 0; i < 8; i++) s += c[Math.floor(Math.random() * c.length)]; return s; };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function toast(msg, err) { const d = document.createElement("div"); d.textContent = msg; if (err) d.className = "err"; $("#toast").appendChild(d); setTimeout(() => d.remove(), err ? 6000 : 3200); }
+function download(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
+function errMsg(e) {
+  const c = e?.code || "";
+  const map = {
+    "auth/email-already-in-use": "Tên đăng nhập đã tồn tại", "auth/weak-password": "Mật khẩu tối thiểu 6 ký tự",
+    "auth/invalid-credential": "Sai tên đăng nhập hoặc mật khẩu", "auth/wrong-password": "Sai mật khẩu", "auth/user-not-found": "Không tìm thấy tài khoản",
+    "auth/invalid-email": "Tên đăng nhập không hợp lệ", "auth/too-many-requests": "Thao tác quá nhiều lần, vui lòng thử lại sau ít phút",
+    "auth/network-request-failed": "Mất kết nối mạng", "permission-denied": "Không có quyền thực hiện thao tác này", "unavailable": "Không kết nối được máy chủ"
+  };
+  return map[c] || e?.message || String(e);
+}
+function pickFile(accept, multiple) {
+  return new Promise(res => { const f = $("#filePick"); f.value = ""; f.accept = accept; f.multiple = !!multiple; f.onchange = () => res([...f.files]); f.click(); });
+}
+const loginToEmail = l => { l = String(l || "").trim().toLowerCase(); return l.includes("@") ? l : `${noAccent(l).replace(/[^a-z0-9._-]/g, "")}@${LOGIN_DOMAIN}`; };
+
+/* =========================== CẤU TRÚC HỒ SƠ =========================== */
+const OPT = {
+  gioiTinh: ["Nam", "Nữ"],
+  doiTuong: ["Viên chức", "Công chức", "Hợp đồng lao động", "Hợp đồng NĐ 111/2022", "Hợp đồng thử việc", "Thực hành", "Học việc", "Khác"],
+  trangThai: ["Đang làm việc", "Nghỉ thai sản", "Đi học dài hạn", "Nghỉ hưu", "Chuyển công tác", "Thôi việc"],
+  honNhan: ["", "Độc thân", "Đã kết hôn", "Ly hôn", "Góa"],
+  nhomMau: ["", "A", "B", "AB", "O"],
+  trinhDo: ["", "Tiến sĩ", "Chuyên khoa II", "Thạc sĩ", "Chuyên khoa I", "Đại học", "Cao đẳng", "Trung cấp", "Sơ cấp", "Khác"],
+  llct: ["", "Cử nhân", "Cao cấp", "Trung cấp", "Sơ cấp"],
+  qlnn: ["", "Chuyên viên cao cấp", "Chuyên viên chính", "Chuyên viên", "Cán sự"],
+  chuKy: ["3 năm", "2 năm"],
+  hinhThucTD: ["", "Thi tuyển", "Xét tuyển", "Tiếp nhận", "Hợp đồng", "Khác"],
+  ketQua: ["Hoàn thành xuất sắc nhiệm vụ", "Hoàn thành tốt nhiệm vụ", "Hoàn thành nhiệm vụ", "Không hoàn thành nhiệm vụ"],
+  ben: ["Bản thân", "Bên vợ/chồng"]
+};
+const NOT_WORKING = ["Nghỉ hưu", "Chuyển công tác", "Thôi việc"];
+// field: [key, label, type, opts]   type: text|date|num|sel|area|dept|month
+const SECTIONS = [
+  { key: "coBan", no: "I", title: "Thông tin cơ bản", fields: [
+    ["hoTen", "Họ và tên khai sinh", "text", { req: 1 }], ["tenKhac", "Tên gọi khác", "text"], ["maCB", "Mã cán bộ / số hiệu", "text"],
+    ["doiTuong", "Đối tượng", "sel", { top: 1, opts: OPT.doiTuong }], ["hdTu", "Thời hạn HĐ/thực hành: từ", "date"], ["hdDen", "Thời hạn HĐ/thực hành: đến", "date"], ["soHD", "Số hợp đồng / QĐ tiếp nhận", "text"],
+    ["ngaySinh", "Ngày sinh", "date", { req: 1 }], ["gioiTinh", "Giới tính", "sel", { opts: OPT.gioiTinh }],
+    ["danToc", "Dân tộc", "text"], ["tonGiao", "Tôn giáo", "text"], ["quocTich", "Quốc tịch", "text"],
+    ["noiSinh", "Nơi sinh", "text", { wide: 1 }], ["queQuan", "Quê quán", "text", { wide: 1 }],
+    ["hoKhau", "Nơi đăng ký thường trú", "text", { wide: 1 }], ["noiO", "Nơi ở hiện nay", "text", { wide: 1 }],
+    ["soCCCD", "Số CCCD/CMND", "text"], ["ngayCapCCCD", "Ngày cấp CCCD", "date"], ["noiCapCCCD", "Nơi cấp CCCD", "text"], ["maDinhDanh", "Mã số định danh", "text"],
+    ["soBHXH", "Số sổ BHXH", "text"], ["soBHYT", "Số thẻ BHYT", "text"], ["maSoThue", "Mã số thuế cá nhân", "text"], ["thanhPhan", "Thành phần gia đình xuất thân", "text"],
+    ["dienThoai", "Điện thoại", "text"], ["email", "Email", "text"], ["honNhan", "Tình trạng hôn nhân", "sel", { opts: OPT.honNhan }],
+    ["sucKhoe", "Tình trạng sức khỏe", "text"], ["chieuCao", "Chiều cao (cm)", "num"], ["canNang", "Cân nặng (kg)", "num"], ["nhomMau", "Nhóm máu", "sel", { opts: OPT.nhomMau }],
+    ["thuongBinh", "Là thương binh hạng", "text"], ["chinhSach", "Là con gia đình chính sách", "text", { wide: 1 }]
+  ] },
+  { key: "luong", no: "II", title: "Lương, phụ cấp, vị trí làm việc", locked: 1, fields: [
+    ["khoaId", "Khoa / phòng", "dept", { top: 1, req: 1 }], ["trangThai", "Trạng thái", "sel", { top: 1, opts: OPT.trangThai }],
+    ["chucVu", "Chức vụ (chức danh) hiện tại", "text", { wide: 1 }], ["ngayBoNhiem", "Ngày bổ nhiệm / phê chuẩn", "date"], ["ngayBoNhiemLai", "Ngày bổ nhiệm lại", "date"],
+    ["chucVuKiemNhiem", "Chức vụ kiêm nhiệm", "text"], ["quyHoach", "Được quy hoạch chức danh", "text"], ["congViec", "Công việc chính được giao", "text", { wide: 1 }],
+    ["viTriViecLam", "Vị trí việc làm", "text"], ["ngach", "Ngạch / chức danh nghề nghiệp", "text"], ["maNgach", "Mã ngạch / mã CDNN", "text"], ["ngayBoNhiemNgach", "Ngày bổ nhiệm ngạch / CDNN", "date"],
+    ["bac", "Bậc lương", "num"], ["heSo", "Hệ số lương", "num"], ["ngayHuong", "Ngày hưởng bậc hiện tại", "date"], ["phanTramHuong", "Phần trăm hưởng (%)", "num"], ["chuKy", "Chu kỳ nâng lương", "sel", { opts: OPT.chuKy }],
+    ["vuotKhung", "Phụ cấp vượt khung (%)", "num"], ["pcChucVu", "Hệ số phụ cấp chức vụ", "num"], ["pcKiemNhiem", "Phụ cấp kiêm nhiệm", "num"], ["pcNghe", "Phụ cấp ưu đãi nghề (%)", "num"], ["pcKhac", "Phụ cấp khác", "text", { wide: 1 }]
+  ], tables: [
+    { key: "dienBien", title: "Diễn biến quá trình lương", cols: [["thang", "Từ tháng/năm", "month"], ["den", "Đến tháng/năm", "month"], ["maNgach", "Mã ngạch", "text"], ["bac", "Bậc", "num"], ["heSo", "Hệ số", "num"], ["ghiChu", "Ghi chú / lương theo VTVL", "text"], ["tep", "File scan", "files"]] }
+  ] },
+  { key: "giaDinh", no: "III", title: "Quan hệ gia đình", fields: [], tables: [
+    { key: "ds", title: "Quan hệ gia đình (bản thân và bên vợ/chồng)", cols: [["ben", "Về", "sel", { opts: OPT.ben }], ["quanHe", "Mối quan hệ", "text"], ["hoTen", "Họ và tên", "text"], ["namSinh", "Năm sinh", "text"], ["thongTin", "Quê quán, nghề nghiệp, chức vụ, đơn vị, nơi ở…", "area"]] }
+  ] },
+  { key: "daoTao", no: "IV", title: "Trình độ đào tạo, chứng chỉ, bồi dưỡng", fields: [
+    ["phoThong", "Trình độ giáo dục phổ thông", "text"], ["hocHam", "Học hàm", "text"], ["trinhDo", "Trình độ chuyên môn (để thống kê)", "sel", { opts: OPT.trinhDo }],
+    ["chuyenMon", "Trình độ chuyên môn cao nhất (ghi đầy đủ)", "text", { wide: 1 }], ["nghiepVu", "Trình độ nghiệp vụ theo chuyên ngành", "text", { wide: 1 }],
+    ["lyLuanCT", "Lý luận chính trị", "sel", { opts: OPT.llct }], ["qlnn", "Quản lý nhà nước", "sel", { opts: OPT.qlnn }],
+    ["ngoaiNgu", "Ngoại ngữ", "text"], ["tinHoc", "Tin học", "text"],
+    ["soCCHN", "Số chứng chỉ/giấy phép hành nghề", "text"], ["ngayCapCCHN", "Ngày cấp CCHN", "date"], ["phamViHN", "Phạm vi hành nghề", "text", { wide: 1 }]
+  ], tables: [
+    { key: "quaTrinh", title: "Đào tạo, bồi dưỡng (mục 27 – Mẫu 2C)", cols: [["truong", "Tên trường", "text"], ["chuyenNganh", "Chuyên ngành", "text"], ["tu", "Từ (tháng/năm)", "month"], ["den", "Đến (tháng/năm)", "month"], ["hinhThuc", "Hình thức", "text"], ["vanBang", "Văn bằng, chứng chỉ", "text"], ["tep", "File scan", "files"]] },
+    { key: "chungChi", title: "Chứng chỉ có thời hạn (theo dõi hết hạn)", cols: [["ten", "Tên chứng chỉ", "text"], ["so", "Số", "text"], ["ngayCap", "Ngày cấp", "date"], ["hetHan", "Ngày hết hạn", "date"], ["noiCap", "Nơi cấp", "text"], ["tep", "File scan", "files"]] }
+  ] },
+  { key: "congTac", no: "V", title: "Tuyển dụng, quá trình công tác", locked: 1, fields: [
+    ["ngheTruocTD", "Nghề nghiệp khi được tuyển dụng", "text"], ["ngayTuyenDung", "Ngày tuyển dụng", "date"], ["coQuanTD", "Cơ quan tuyển dụng", "text"],
+    ["hinhThucTD", "Hình thức tuyển dụng", "sel", { opts: OPT.hinhThucTD }], ["ngayVaoNganh", "Ngày vào ngành Y tế", "date"], ["ngayVaoCQ", "Ngày vào cơ quan hiện công tác", "date"],
+    ["loaiHD", "Loại hợp đồng", "text"], ["soQD", "Số quyết định tuyển dụng", "text"]
+  ], tables: [
+    { key: "quaTrinh", title: "Tóm tắt quá trình công tác (mục 28 – Mẫu 2C)", cols: [["tu", "Từ (tháng/năm)", "month"], ["den", "Đến (tháng/năm)", "month"], ["chucDanh", "Chức danh, chức vụ", "text"], ["donVi", "Đơn vị công tác", "text"], ["tep", "File scan", "files"]] }
+  ] },
+  { key: "khenThuong", no: "VI", title: "Khen thưởng, kỷ luật", locked: 1, fields: [
+    ["danhHieu", "Danh hiệu được phong tặng cao nhất", "text", { wide: 1 }], ["tomTatKT", "Khen thưởng (ghi vào mục 21 – 2C)", "text", { wide: 1 }], ["tomTatKL", "Kỷ luật (ghi vào mục 22 – 2C)", "text", { wide: 1 }]
+  ], tables: [
+    { key: "khen", title: "Khen thưởng", cols: [["nam", "Năm", "text"], ["hinhThuc", "Hình thức / danh hiệu", "text"], ["cap", "Cấp khen", "text"], ["soQD", "Số quyết định", "text"], ["noiDung", "Nội dung", "text"], ["tep", "File scan", "files"]] },
+    { key: "kyLuat", title: "Kỷ luật", cols: [["nam", "Năm", "text"], ["hinhThuc", "Hình thức", "text"], ["soQD", "Số quyết định", "text"], ["lyDo", "Lý do", "text"], ["tep", "File scan", "files"]] }
+  ] },
+  { key: "danhGia", no: "VII", title: "Kết quả đánh giá, phân loại", locked: 1, fields: [], tables: [
+    { key: "ds", title: "Đánh giá, phân loại hằng năm", cols: [["nam", "Năm", "text"], ["ketQua", "Kết quả phân loại", "sel", { opts: OPT.ketQua }], ["thiDua", "Danh hiệu thi đua", "text"], ["ghiChu", "Ghi chú", "text"], ["tep", "File scan", "files"]] }
+  ] },
+  { key: "dangDoan", no: "VIII", title: "Thông tin Đảng, Đoàn, Hội", fields: [
+    ["ngayVaoDang", "Ngày vào Đảng", "date"], ["ngayChinhThuc", "Ngày chính thức", "date"], ["soTheDang", "Số thẻ đảng viên", "text"], ["chiBo", "Sinh hoạt tại chi bộ", "text"], ["chucVuDang", "Chức vụ Đảng", "text"],
+    ["ngayCTXH", "Ngày tham gia tổ chức CT-XH đầu tiên", "date"], ["ngayVaoDoan", "Ngày vào Đoàn TNCS", "date"], ["ngayVaoCongDoan", "Ngày vào Công đoàn", "date"], ["chucVuDoanThe", "Chức vụ đoàn thể", "text"],
+    ["hoiKhac", "Tham gia tổ chức chính trị – xã hội khác", "text", { wide: 1 }], ["ngayNhapNgu", "Ngày nhập ngũ", "date"], ["ngayXuatNgu", "Ngày xuất ngũ", "date"], ["quanHam", "Quân hàm cao nhất", "text"]
+  ] },
+  { key: "banThan", no: "IX", title: "Đặc điểm lịch sử bản thân, mục tiêu, sở thích", fields: [
+    ["lichSu", "Bị bắt, bị tù, làm việc trong chế độ cũ", "area", { wide: 1 }], ["toChucNN", "Tham gia/quan hệ với tổ chức ở nước ngoài", "area", { wide: 1 }],
+    ["thanNhanNN", "Thân nhân ở nước ngoài", "area", { wide: 1 }], ["soTruong", "Sở trường công tác", "text"], ["congViecLauNhat", "Công việc làm lâu nhất", "text"],
+    ["mucTieu", "Mục tiêu phát triển nghề nghiệp", "area", { wide: 1 }], ["soThich", "Sở thích", "text", { wide: 1 }]
+  ] },
+  { key: "kinhTe", no: "X", title: "Hoàn cảnh kinh tế gia đình", fields: [
+    ["thuNhap", "Thu nhập từ tiền lương (đồng/năm)", "text"], ["nguonThuNhap", "Các nguồn thu nhập khác (đồng/năm)", "text"],
+    ["nhaODuocCap", "Nhà ở được cấp/thuê (loại, m²)", "text"], ["nhaOTuMua", "Nhà ở tự mua/xây (loại, m²)", "text"],
+    ["datODuocCap", "Đất ở được cấp (m²)", "text"], ["datOTuMua", "Đất ở tự mua (m²)", "text"], ["datSX", "Đất sản xuất, kinh doanh (m²)", "text"],
+    ["kinhTeKhac", "Hoạt động kinh tế khác", "area", { wide: 1 }]
+  ] },
+  { key: "khac", no: "XI", title: "Thông tin khác", fields: [
+    ["nhanXet", "Nhận xét, đánh giá của cơ quan (mục 32 – 2C)", "area", { wide: 1 }], ["tepScan", "Hồ sơ scan khác (CCCD, bằng cấp, quyết định, hợp đồng…)", "files", { wide: 1 }], ["ghiChu", "Ghi chú", "area", { wide: 1 }]
+  ] }
+];
+SECTIONS.forEach(s => s.tables = s.tables || []);
+const SELF_KEYS = ["coBan", "luong", "giaDinh", "daoTao", "congTac", "khenThuong", "danhGia", "dangDoan", "banThan", "kinhTe", "khac", "doiTuong", "updatedAt", "updatedBy"];
+const FLAT = [];
+SECTIONS.forEach(s => s.fields.filter(f => f[2] !== "files").forEach(f => FLAT.push({ path: f[3]?.top ? f[0] : `${s.key}.${f[0]}`, key: f[0], label: f[1], type: f[2], o: f[3] || {}, sec: s })));
+const ROLE = { admin: "Quản trị (TCHC)", truongkhoa: "Trưởng khoa / phòng", nhanvien: "Nhân viên" };
+// Vai trò hiển thị: [mã, nhãn, vai trò phân quyền, chức danh quản lý]
+const MGR_PERMS = { editSelf: true, viewDept: true, editDept: true, exportDept: true, manageAcc: true };
+const ROLE_OPTS = [
+  ["admin", "Quản trị (TCHC)", "admin", ""], ["truongkhoa", "Trưởng khoa / phòng", "truongkhoa", ""],
+  ["phokhoa", "Phó khoa / phòng", "nhanvien", "Phó khoa / phòng"], ["ddtruong", "Điều dưỡng trưởng", "nhanvien", "Điều dưỡng trưởng"],
+  ["ktvtruong", "Kỹ thuật viên trưởng", "nhanvien", "Kỹ thuật viên trưởng"], ["nhanvien", "Nhân viên", "nhanvien", ""]];
+const roleLabel = u => u?.chucDanh || ROLE[u?.role] || u?.role || "";
+const roleKeyOf = u => (ROLE_OPTS.find(o => o[2] === u.role && o[3] === (u.chucDanh || "")) || ROLE_OPTS.find(o => o[0] === u.role))[0];
+const PERMS = [["editSelf", "Tự khai / cập nhật hồ sơ của mình"], ["viewDept", "Xem hồ sơ cả khoa"], ["editDept", "Thêm/sửa hồ sơ trong khoa"], ["exportDept", "Xuất Excel / in Mẫu 2C"], ["manageAcc", "Quản lý tài khoản nhân viên trong khoa (giao cho phó khoa / phó phòng)"]];
+const DEFAULT_DEPTS = ["Ban Giám đốc", "Phòng Tổ chức - Hành chính", "Phòng Kế hoạch tổng hợp", "Phòng Tài chính - Kế toán", "Phòng Điều dưỡng", "Khoa Khám bệnh", "Khoa Hồi sức cấp cứu", "Khoa Nội tổng hợp", "Khoa Ngoại tổng hợp", "Khoa Phụ sản", "Khoa Nhi", "Khoa Truyền nhiễm", "Khoa Y học cổ truyền - PHCN", "Khoa Liên chuyên khoa", "Khoa Gây mê hồi sức", "Khoa Xét nghiệm", "Khoa Chẩn đoán hình ảnh", "Khoa Dược", "Khoa Kiểm soát nhiễm khuẩn", "Khoa Dinh dưỡng"];
+
+function blankStaff(khoaId) {
+  const s = { khoaId: khoaId || "", doiTuong: "Viên chức", trangThai: "Đang làm việc", uid: "" };
+  SECTIONS.forEach(sec => { s[sec.key] = {}; sec.tables.forEach(t => s[sec.key][t.key] = []); });
+  s.coBan.gioiTinh = "Nam"; s.coBan.danToc = "Kinh"; s.coBan.quocTich = "Việt Nam"; s.luong.chuKy = "3 năm";
+  return s;
+}
+
+/* =========================== NGHIỆP VỤ =========================== */
+const nameOf = s => titleCase(s?.coBan?.hoTen || "(chưa có tên)");
+const deptName = id => S.depts.find(d => d.id === id)?.ten || "";
+function age(s) { const b = parseISO(s.coBan?.ngaySinh); if (!b) return null; const t = new Date(); let a = t.getFullYear() - b.getFullYear(); if (t < new Date(t.getFullYear(), b.getMonth(), b.getDate())) a--; return a; }
+// Tuổi nghỉ hưu theo Nghị định 135/2020/NĐ-CP (lao động điều kiện bình thường)
+function retireDate(s) {
+  const b = parseISO(s.coBan?.ngaySinh); if (!b) return null;
+  const male = s.coBan?.gioiTinh !== "Nữ";
+  for (let Y = 2021; Y <= 2040; Y++) {
+    const m = male ? Math.min(720 + 3 * (Y - 2020), 744) : Math.min(660 + 4 * (Y - 2020), 720);
+    const d = addMonths(b, m);
+    if (d.getFullYear() <= Y) return d;
+  }
+  return addMonths(b, male ? 744 : 720);
+}
+function nextRaise(s) { const d = parseISO(s.luong?.ngayHuong); if (!d) return null; return addMonths(d, s.luong?.chuKy === "2 năm" ? 24 : 36); }
+function inferTrinhDo(t) {
+  const x = norm(t);
+  if (!x) return "";
+  if (/tien si|\bts\b/.test(x)) return "Tiến sĩ";
+  if (/ckii|ck ii|chuyen khoa (ii|2|cap ii)/.test(x)) return "Chuyên khoa II";
+  if (/thac si|\bths\b/.test(x)) return "Thạc sĩ";
+  if (/cki|ck i|chuyen khoa (i|1|cap i)/.test(x)) return "Chuyên khoa I";
+  if (/dai hoc|cu nhan|ky su|bac si/.test(x)) return "Đại học";
+  if (/cao dang/.test(x)) return "Cao đẳng";
+  if (/trung cap|trung hoc/.test(x)) return "Trung cấp";
+  if (/so cap/.test(x)) return "Sơ cấp";
+  return "Khác";
+}
+const trinhDoOf = s => s.daoTao?.trinhDo || inferTrinhDo(s.daoTao?.chuyenMon) || "Chưa rõ";
+const working = s => !NOT_WORKING.includes(s.trangThai);
+// Mức độ khai hồ sơ (%) theo các trường chính
+const KEY_FIELDS = ["coBan.ngaySinh", "coBan.noiSinh", "coBan.queQuan", "coBan.danToc", "coBan.hoKhau", "coBan.noiO", "coBan.soCCCD", "coBan.dienThoai", "coBan.soBHXH",
+  "luong.chucVu", "luong.ngach", "luong.heSo", "luong.ngayHuong", "daoTao.trinhDo", "daoTao.chuyenMon", "congTac.ngayTuyenDung"];
+function completeness(s) {
+  let n = KEY_FIELDS.filter(p => String(getP(s, p) ?? "").trim()).length, t = KEY_FIELDS.length;
+  t += 3; if ((s.giaDinh?.ds || []).length) n++; if ((s.daoTao?.quaTrinh || []).length) n++; if ((s.congTac?.quaTrinh || []).length) n++;
+  return Math.round(n / t * 100);
+}
+
+/* ============================ BACKEND ============================ */
+let B;
+async function makeFirebase() {
+  const base = `https://www.gstatic.com/firebasejs/${FB_VER}`;
+  const [A, U, F] = await Promise.all([import(`${base}/firebase-app.js`), import(`${base}/firebase-auth.js`), import(`${base}/firebase-firestore.js`)]);
+  const app = A.initializeApp(FIREBASE_CONFIG, "qlnl"); // tên riêng: phiên đăng nhập không lẫn với app Kê đơn thuốc dùng chung project
+  const auth = U.getAuth(app), db = F.getFirestore(app);
+  const sec = A.initializeApp(FIREBASE_CONFIG, "qlnl-secondary"), secAuth = U.getAuth(sec);
+  U.setPersistence(secAuth, U.inMemoryPersistence).catch(() => {});
+  const P = c => COLLECTION_PREFIX + c;
+  const ref = (c, id) => F.doc(db, P(c), id);
+  return {
+    mode: "firebase",
+    onAuth: cb => U.onAuthStateChanged(auth, u => cb(u ? { uid: u.uid, email: u.email } : null)),
+    signIn: (e, p) => U.signInWithEmailAndPassword(auth, e, p),
+    signOut: () => U.signOut(auth),
+    signUpSelf: (e, p) => U.createUserWithEmailAndPassword(auth, e, p).then(c => ({ uid: c.user.uid, email: c.user.email })),
+    async createAccount(e, p) { const c = await U.createUserWithEmailAndPassword(secAuth, e, p); const uid = c.user.uid; await U.signOut(secAuth); return uid; },
+    async changePassword(oldP, newP) { const u = auth.currentUser; await U.reauthenticateWithCredential(u, U.EmailAuthProvider.credential(u.email, oldP)); await U.updatePassword(u, newP); },
+    resetEmail: e => U.sendPasswordResetEmail(auth, e),
+    idToken: () => auth.currentUser.getIdToken(),
+    async get(c, id) { const s = await F.getDoc(ref(c, id)); return s.exists() ? { id: s.id, ...s.data() } : null; },
+    async list(c, where = [], o = {}) {
+      const q = where.map(w => F.where(...w)); if (o.orderBy) q.push(F.orderBy(o.orderBy, o.dir || "asc")); if (o.limit) q.push(F.limit(o.limit));
+      const s = await F.getDocs(F.query(F.collection(db, P(c)), ...q)); return s.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    set: (c, id, d, merge) => F.setDoc(ref(c, id), d, { merge: !!merge }),
+    update: (c, id, d) => F.updateDoc(ref(c, id), d),
+    add: (c, d) => F.addDoc(F.collection(db, P(c)), d).then(r => r.id),
+    del: (c, id) => F.deleteDoc(ref(c, id)),
+    newId: c => F.doc(F.collection(db, P(c))).id,
+    async batch(ops) {
+      for (let i = 0; i < ops.length; i += 400) {
+        const b = F.writeBatch(db);
+        ops.slice(i, i + 400).forEach(o => { const r = ref(o.col, o.id); if (o.op === "set") b.set(r, o.data, { merge: !!o.merge }); else if (o.op === "update") b.update(r, o.data); else b.delete(r); });
+        await b.commit();
+      }
+    }
+  };
+}
+function makeDemo() {
+  const KEY = "qlnl_demo_v1";
+  let st = null;
+  try { st = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
+  if (!st) st = demoSeed();
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} };
+  save();
+  let cur = null, cb = () => {};
+  const col = c => (st.db[c] = st.db[c] || {});
+  const id = () => Math.random().toString(36).slice(2, 12) + Date.now().toString(36).slice(-4);
+  const fail = (code, message) => { const e = new Error(message || code); e.code = code; throw e; };
+  const tick = () => sleep(60);
+  return {
+    mode: "demo",
+    reset() { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); },
+    onAuth(f) { cb = f; setTimeout(() => cb(cur), 0); },
+    async signIn(e, p) { await tick(); const a = st.accounts[e]; if (!a || a.pw !== p) fail("auth/invalid-credential"); cur = { uid: a.uid, email: e }; cb(cur); },
+    async signOut() { cur = null; cb(null); },
+    async signUpSelf(e, p) { if (st.accounts[e]) fail("auth/email-already-in-use"); const uid = id(); st.accounts[e] = { pw: p, uid }; save(); cur = { uid, email: e }; cb(cur); return cur; },
+    async createAccount(e, p) { await tick(); if (st.accounts[e]) fail("auth/email-already-in-use"); if (String(p).length < 6) fail("auth/weak-password"); const uid = id(); st.accounts[e] = { pw: p, uid }; save(); return uid; },
+    async changePassword(o, n) { const a = st.accounts[cur.email]; if (a.pw !== o) fail("auth/wrong-password"); if (n.length < 6) fail("auth/weak-password"); a.pw = n; save(); },
+    async resetEmail() { fail("demo", "Chế độ demo không gửi email"); },
+    async adminSetPw(email, pw) { const a = st.accounts[email]; if (!a) fail("not-found", "Không tìm thấy tài khoản"); a.pw = pw; save(); },
+    idToken: async () => "demo",
+    async get(c, i) { await tick(); const d = col(c)[i]; return d ? { id: i, ...clone(d) } : null; },
+    async list(c, where = [], o = {}) {
+      await tick();
+      let r = Object.entries(col(c)).map(([i, d]) => ({ id: i, ...clone(d) }));
+      where.forEach(([f, op, v]) => { r = r.filter(x => op === "==" ? getP(x, f) === v : true); });
+      if (o.orderBy) r.sort((a, b) => String(a[o.orderBy]).localeCompare(String(b[o.orderBy])) * (o.dir === "desc" ? -1 : 1));
+      if (o.limit) r = r.slice(0, o.limit);
+      return r;
+    },
+    async set(c, i, d, merge) { col(c)[i] = merge ? { ...(col(c)[i] || {}), ...clone(d) } : clone(d); save(); },
+    async update(c, i, d) { if (!col(c)[i]) fail("not-found", "Không tìm thấy bản ghi"); Object.entries(clone(d)).forEach(([k, v]) => setP(col(c)[i], k, v)); save(); },
+    async add(c, d) { const i = id(); col(c)[i] = clone(d); save(); return i; },
+    async del(c, i) { delete col(c)[i]; save(); },
+    newId: () => id(),
+    async batch(ops) { for (const o of ops) { if (o.op === "set") await this.set(o.col, o.id, o.data, o.merge); else if (o.op === "update") await this.update(o.col, o.id, o.data); else await this.del(o.col, o.id); } }
+  };
+}
+function demoSeed() {
+  const db = { departments: {}, staff: {}, users: {}, photos: {}, logs: {}, settings: { app: { ...DEFAULT_SETTINGS }, bootstrap: { at: nowISO() } } };
+  DEFAULT_DEPTS.forEach((t, i) => db.departments["d" + i] = { ten: t, ma: "", thuTu: i + 1 });
+  const dk = t => "d" + DEFAULT_DEPTS.indexOf(t);
+  const y = new Date().getFullYear();
+  const P = [
+    ["Nguyễn Văn An", "1966-03-12", "Nam", "Phòng Tổ chức - Hành chính", "Trưởng phòng", "Chuyên viên", "01.003", 7, "4.32", y - 3, "Thạc sĩ Quản lý bệnh viện", "Thạc sĩ"],
+    ["Trần Thị Bích", "1988-09-02", "Nữ", "Phòng Tổ chức - Hành chính", "Chuyên viên", "Chuyên viên", "01.003", 4, "3.33", y - 2, "Cử nhân Luật", "Đại học"],
+    ["Lê Minh Châu", "1979-05-20", "Nam", "Khoa Dược", "Trưởng khoa", "Dược sĩ chính", "V.08.08.21", 3, "5.08", y - 3, "Dược sĩ chuyên khoa I", "Chuyên khoa I"],
+    ["Phạm Thu Hà", "1993-11-08", "Nữ", "Khoa Dược", "Dược sĩ", "Dược sĩ", "V.08.08.22", 3, "3.00", y - 2, "Đại học Dược", "Đại học"],
+    ["Vũ Đức Long", "1997-01-15", "Nam", "Khoa Dược", "Dược sĩ trung học", "Dược hạng IV", "V.08.08.23", 2, "2.06", y - 2, "Cao đẳng Dược", "Cao đẳng"],
+    ["Hoàng Thị Lan", "1969-07-30", "Nữ", "Khoa Nội tổng hợp", "Điều dưỡng trưởng khoa", "Điều dưỡng hạng III", "V.08.05.12", 8, "4.65", y - 3, "Cử nhân Điều dưỡng", "Đại học"],
+    ["Đặng Quốc Huy", "1975-02-11", "Nam", "Khoa Nội tổng hợp", "Trưởng khoa", "Bác sĩ chính", "V.08.01.02", 5, "5.42", y - 1, "Bác sĩ chuyên khoa II Nội khoa", "Chuyên khoa II"],
+    ["Bùi Thị Mai", "1995-04-18", "Nữ", "Khoa Nội tổng hợp", "Điều dưỡng", "Điều dưỡng hạng IV", "V.08.05.13", 3, "2.26", y - 2, "Cao đẳng Điều dưỡng", "Cao đẳng"],
+    ["Ngô Văn Nam", "1964-10-05", "Nam", "Khoa Ngoại tổng hợp", "Bác sĩ", "Bác sĩ chính", "V.08.01.02", 7, "6.10", y - 2, "Bác sĩ chuyên khoa I Ngoại", "Chuyên khoa I"],
+    ["Đinh Thị Oanh", "1990-12-24", "Nữ", "Khoa Ngoại tổng hợp", "Điều dưỡng", "Điều dưỡng hạng III", "V.08.05.12", 3, "3.00", y - 3, "Cử nhân Điều dưỡng", "Đại học"],
+    ["Phan Văn Phúc", "1985-06-14", "Nam", "Khoa Khám bệnh", "Phó trưởng khoa", "Bác sĩ", "V.08.01.03", 5, "3.99", y - 1, "Thạc sĩ Y học", "Thạc sĩ"],
+    ["Trịnh Thị Quỳnh", "1992-03-03", "Nữ", "Khoa Nhi", "Bác sĩ", "Bác sĩ", "V.08.01.03", 3, "3.00", y - 2, "Bác sĩ đa khoa", "Đại học"],
+    ["Mai Văn Sang", "1987-08-19", "Nam", "Khoa Xét nghiệm", "Kỹ thuật viên trưởng", "Kỹ thuật y hạng III", "V.08.07.18", 5, "3.66", y - 3, "Cử nhân Kỹ thuật xét nghiệm", "Đại học"],
+    ["Dương Thị Tâm", "1970-01-09", "Nữ", "Khoa Chẩn đoán hình ảnh", "Kỹ thuật viên", "Kỹ thuật y hạng IV", "V.08.07.19", 10, "4.06", y - 2, "Trung cấp Kỹ thuật hình ảnh", "Trung cấp"],
+    ["Lý Văn Tuấn", "1983-05-27", "Nam", "Khoa Hồi sức cấp cứu", "Trưởng khoa", "Bác sĩ chính", "V.08.01.02", 3, "5.08", y - 3, "Bác sĩ chuyên khoa I Hồi sức", "Chuyên khoa I"],
+    ["Tô Thị Uyên", "1994-09-21", "Nữ", "Khoa Phụ sản", "Hộ sinh", "Hộ sinh hạng IV", "V.08.06.16", 3, "2.26", y - 1, "Cao đẳng Hộ sinh", "Cao đẳng"]
+  ];
+  const ids = [];
+  const td = new Date(); const mm = pad(((td.getMonth() + 1) % 12) + 1);
+  P.forEach((p, i) => {
+    const s = blankStaff(dk(p[3]));
+    Object.assign(s.coBan, { hoTen: p[0], ngaySinh: p[1], gioiTinh: p[2], noiSinh: "Hải Hậu, Nam Định", queQuan: "Ninh Bình", tonGiao: "Không", hoKhau: "Xã Hải Hậu, tỉnh Ninh Bình", noiO: "Xã Hải Hậu, tỉnh Ninh Bình", soCCCD: "0362000" + String(10000 + i * 37), dienThoai: "09" + String(12345670 + i * 113), sucKhoe: "Tốt", honNhan: "Đã kết hôn", maCB: "BV" + pad(i + 1) });
+    Object.assign(s.luong, { chucVu: p[4], congViec: p[4], ngach: p[5], maNgach: p[6], bac: String(p[7]), heSo: p[8], ngayHuong: `${p[9]}-${i % 3 === 0 ? mm : "07"}-01`, pcNghe: "40", dienBien: [{ thang: `07/${p[9] - 3}`, maNgach: p[6], bac: String(p[7] - 1), heSo: "", ghiChu: "" }, { thang: `07/${p[9]}`, maNgach: p[6], bac: String(p[7]), heSo: p[8], ghiChu: "" }] });
+    Object.assign(s.daoTao, { phoThong: "12/12", chuyenMon: p[10], trinhDo: p[11], lyLuanCT: i % 3 === 0 ? "Trung cấp" : "Sơ cấp", ngoaiNgu: "Tiếng Anh B1", tinHoc: "Chuẩn kỹ năng CNTT cơ bản", quaTrinh: [{ truong: "Trường Đại học Y Dược", chuyenNganh: p[10], tu: "09/2010", den: "06/2015", hinhThuc: "Chính quy", vanBang: "Bằng tốt nghiệp" }], chungChi: [{ ten: "Chứng chỉ hành nghề", so: "CCHN-" + (1000 + i), ngayCap: "2021-10-01", hetHan: i % 4 === 0 ? isoOf(addMonths(new Date(), 2)) : "2031-10-01", noiCap: "Sở Y tế" }] });
+    Object.assign(s.congTac, { ngheTruocTD: "Sinh viên", ngayTuyenDung: `${2008 + (i % 10)}-04-01`, coQuanTD: "Sở Y tế Nam Định", hinhThucTD: "Xét tuyển", quaTrinh: [{ tu: `05/${2008 + (i % 10)}`, den: "", chucDanh: p[4], donVi: "Bệnh viện Đa khoa Hải Hậu" }] });
+    s.danhGia.ds = [{ nam: String(y - 1), ketQua: OPT.ketQua[i % 3], thiDua: i % 3 === 0 ? "Chiến sĩ thi đua cơ sở" : "Lao động tiên tiến", ghiChu: "" }];
+    if (i % 2 === 0) Object.assign(s.dangDoan, { ngayVaoDang: `${2012 + (i % 8)}-05-19`, ngayChinhThuc: `${2013 + (i % 8)}-05-19`, chiBo: "Chi bộ " + p[3] });
+    s.giaDinh.ds = [{ ben: "Bản thân", quanHe: "Cha đẻ", hoTen: "Họ tên cha (mẫu)", namSinh: "1960", thongTin: "Làm ruộng, Ninh Bình" }];
+    s.createdAt = s.updatedAt = nowISO(); s.updatedBy = "Dữ liệu mẫu";
+    const sid = "s" + i; db.staff[sid] = s; ids.push(sid);
+  });
+  const accounts = {};
+  const mk = (login, uid, hoTen, role, khoaId, staffIdx, perms) => {
+    accounts[loginToEmail(login)] = { pw: "123456", uid };
+    db.users[uid] = { hoTen, login, email: loginToEmail(login), role, khoaId, staffId: ids[staffIdx], perms: perms || {}, active: true, mustChangePw: false, createdAt: nowISO(), createdBy: "Dữ liệu mẫu" };
+    db.staff[ids[staffIdx]].uid = uid;
+  };
+  mk("admin", "u_admin", "Nguyễn Văn An", "admin", dk("Phòng Tổ chức - Hành chính"), 0);
+  mk("tkduoc", "u_tk", "Lê Minh Châu", "truongkhoa", dk("Khoa Dược"), 2);
+  mk("nvduoc", "u_nv", "Phạm Thu Hà", "nhanvien", dk("Khoa Dược"), 3, { editSelf: true });
+  return { db, accounts };
+}
+
+/* ============================ TRẠNG THÁI ============================ */
+const S = { user: null, me: null, depts: [], staff: [], users: [], settings: { ...DEFAULT_SETTINGS }, view: "dash", f: { q: "", khoa: "", tt: "working", dt: "" }, cur: null, draft: null, edit: false, tab: 0, photo: null, photoDirty: false, imp: null, xl: null, logs: null, booting: false, needBoot: false, fUp: [], fTrash: [] };
+const isAdmin = () => S.me?.role === "admin", isTK = () => S.me?.role === "truongkhoa", isNV = () => S.me?.role === "nhanvien";
+const perm = p => !!S.me?.perms?.[p];
+const canList = () => isAdmin() || isTK() || (isNV() && perm("viewDept"));
+const canManage = k => isAdmin() || ((isTK() || (isNV() && perm("editDept"))) && k === S.me.khoaId);
+const isSelf = s => !!s.uid && s.uid === S.user?.uid;
+const canEdit = s => canManage(s.khoaId) || (perm("editSelf") && isSelf(s));
+const canEditSec = (s, key) => canManage(s.khoaId) || (canEdit(s) && SELF_KEYS.includes(key));
+const canMakeMine = () => isAdmin() || isTK() || perm("editSelf");
+const canImportAll = () => isAdmin() || isTK() || (isNV() && perm("editDept"));
+const canExport = () => isAdmin() || isTK() || perm("exportDept");
+const isMgrNV = () => isNV() && perm("manageAcc");
+const roleChoices = () => isAdmin() ? ROLE_OPTS.map(o => o[0]) : isTK() ? ["phokhoa", "ddtruong", "ktvtruong", "nhanvien"] : ["nhanvien"];
+const canAccounts = () => isAdmin() || isTK() || isMgrNV();
+const visibleStaff = () => S.staff;
+
+async function log(action, target = {}) {
+  try { await B.add("logs", { at: nowISO(), uid: S.user.uid, ten: S.me.hoTen, action, doiTuong: target.name || "", staffId: target.id || "", khoaId: target.khoaId || S.me.khoaId || "" }); } catch (e) { console.warn("log", e); }
+}
+
+async function loadAll() {
+  const k = S.me.khoaId;
+  S.depts = (await B.list("departments")).sort((a, b) => (a.thuTu || 999) - (b.thuTu || 999) || a.ten.localeCompare(b.ten, "vi"));
+  const st = await B.get("settings", "app").catch(() => null);
+  S.settings = { ...DEFAULT_SETTINGS, ...(st || {}) };
+  if (isAdmin()) S.staff = await B.list("staff");
+  else if (canList()) S.staff = await B.list("staff", [["khoaId", "==", k]]);
+  else S.staff = [];
+  if (S.me.staffId && !S.staff.find(x => x.id === S.me.staffId)) { const m = await B.get("staff", S.me.staffId).catch(() => null); if (m) S.staff.push(m); }
+  if (isAdmin()) S.users = await B.list("users");
+  else if (isTK() || isMgrNV()) S.users = await B.list("users", [["khoaId", "==", k]]);
+  else S.users = [];
+}
+
+/* ============================ KHỞI ĐỘNG ============================ */
+async function start() {
+  try { B = FIREBASE_CONFIG.apiKey ? await makeFirebase() : makeDemo(); }
+  catch (e) { $("#app").innerHTML = `<div class="boot">Không tải được Firebase: ${esc(errMsg(e))}</div>`; return; }
+  if (B.mode === "firebase") { try { S.needBoot = !(await B.get("settings", "bootstrap")); } catch (e) { S.needBoot = false; } }
+  B.onAuth(handleAuth);
+}
+async function handleAuth(u) {
+  if (S.booting) return;
+  S.user = u; S.me = null;
+  if (!u) { renderLogin(); return; }
+  $("#app").innerHTML = `<div class="boot">Đang tải dữ liệu…</div>`;
+  try {
+    const me = await B.get("users", u.uid);
+    if (!me) { toast("Tài khoản chưa được cấp quyền sử dụng ứng dụng", 1); await B.signOut(); return; }
+    if (!me.active) { toast("Tài khoản đã bị khóa. Liên hệ phòng Tổ chức – Hành chính.", 1); await B.signOut(); return; }
+    S.me = { ...me, uid: u.uid };
+    await loadAll();
+    S.view = canList() ? "dash" : "mine";
+    if (S.view === "mine" && S.me.staffId) await openProfile(S.me.staffId, true); else if (S.view === "mine" && canMakeMine()) App.createMine(); else { S.draft = null; S.cur = null; render(); }
+    if (me.mustChangePw) openChangePw(true);
+    B.update("users", u.uid, { lastLogin: nowISO() }).catch(() => {});
+  } catch (e) { console.error(e); $("#app").innerHTML = `<div class="boot">Lỗi tải dữ liệu: ${esc(errMsg(e))}<br><br><button class="btn" onclick="App.logout()">Đăng xuất</button></div>`; }
+}
+
+/* ============================ ĐĂNG NHẬP ============================ */
+function renderLogin() {
+  const demo = B.mode === "demo";
+  if (S.needBoot) return renderBootstrap();
+  $("#app").innerHTML = `<div class="login"><div class="card">
+    <h1>Quản lý nhân lực</h1><p>${esc(DEFAULT_SETTINGS.tenBV)}</p>
+    <form onsubmit="App.login(event)">
+      <label class="f">Tên đăng nhập hoặc email<input type="text" id="lg_u" autocomplete="username" required></label>
+      <label class="f">Mật khẩu<input type="password" id="lg_p" autocomplete="current-password" required></label>
+      <button class="btn pri" id="lg_b" style="justify-content:center">Đăng nhập</button>
+      <a href="#" onclick="App.forgot(event)" style="font-size:13px">Quên mật khẩu?</a>
+    </form>
+    ${demo ? `<div class="quick"><div class="muted" style="font-size:12.5px">Chế độ demo — dữ liệu mẫu hư cấu, lưu trên trình duyệt. Đăng nhập nhanh (mật khẩu 123456):</div>
+      <button class="btn" onclick="App.quick('admin')">Trưởng phòng TCHC (quản trị)</button>
+      <button class="btn" onclick="App.quick('tkduoc')">Trưởng khoa Dược</button>
+      <button class="btn" onclick="App.quick('nvduoc')">Nhân viên khoa Dược</button></div>` : ""}
+  </div></div>`;
+}
+function renderBootstrap() {
+  $("#app").innerHTML = `<div class="login"><div class="card">
+    <h1>Khởi tạo hệ thống</h1><p>Chưa có quản trị viên. Tạo tài khoản quản trị đầu tiên (Trưởng phòng Tổ chức – Hành chính). Bước này chỉ thực hiện được một lần.</p>
+    <form onsubmit="App.bootstrap(event)">
+      <label class="f">Họ và tên<input type="text" id="bs_n" required></label>
+      <label class="f">Tên đăng nhập hoặc email<input type="text" id="bs_u" required></label>
+      <label class="f">Mật khẩu (≥ 6 ký tự)<input type="password" id="bs_p" required minlength="6"></label>
+      <label class="f">Tên bệnh viện<input type="text" id="bs_bv" value="${esc(DEFAULT_SETTINGS.tenBV)}"></label>
+      <label class="chk"><input type="checkbox" id="bs_d" checked> Tạo sẵn danh mục khoa/phòng mẫu (sửa được sau)</label>
+      <button class="btn pri" style="justify-content:center">Khởi tạo</button>
+    </form></div></div>`;
+}
+
+/* ============================ KHUNG GIAO DIỆN ============================ */
+const ICON = {
+  dash: '<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
+  staff: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.9.7 3.1 2.5 3.5 5.2"/>',
+  mine: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.2-6.5 8-6.5s7 2.5 8 6.5"/>',
+  import: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/>',
+  accounts: '<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  depts: '<path d="M4 21V5l8-3 8 3v16"/><path d="M9 21v-5h6v5M9 9h.01M15 9h.01M9 13h.01M15 13h.01"/>',
+  logs: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M16 7l3 3M18 5l2 2"/>',
+  out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>'
+};
+const ic = k => `<svg viewBox="0 0 24 24">${ICON[k]}</svg>`;
+function navItems() {
+  return [
+    ["dash", "Tổng quan", canList()], ["staff", "Hồ sơ nhân sự", canList()], ["mine", "Hồ sơ của tôi", true],
+    ["import", "Nhập dữ liệu", canImportAll() || canMakeMine()], ["accounts", "Tài khoản", canAccounts()], ["depts", "Khoa / phòng", isAdmin()],
+    ["logs", "Nhật ký", isAdmin() || isTK()], ["settings", "Cài đặt", isAdmin()]
+  ].filter(x => x[2]);
+}
+function render() {
+  if (!S.me) return renderLogin();
+  const v = S.view;
+  const active = v === "profile" ? (S.cur && S.cur === S.me.staffId ? "mine" : "staff") : v;
+  const body = { dash: viewDash, staff: viewStaff, profile: viewProfile, mine: viewProfile, import: viewImport, accounts: viewAccounts, depts: viewDepts, logs: viewLogs, settings: viewSettings }[v] || viewDash;
+  const scope = isAdmin() ? "Toàn bệnh viện" : deptName(S.me.khoaId);
+  $("#app").innerHTML = `<div class="shell">
+    <aside class="side">
+      <div class="brand"><b>Quản lý nhân lực</b><small>${esc(S.settings.tenBV)}</small></div>
+      ${navItems().map(([k, l]) => `<button class="nav ${active === k ? "on" : ""}" onclick="App.go('${k}')">${ic(k)}<span>${l}</span></button>`).join("")}
+      <div class="spacer"></div>
+      <button class="nav" onclick="App.changePw()">${ic("key")}<span>Đổi mật khẩu</span></button>
+      <button class="nav" onclick="App.logout()">${ic("out")}<span>Đăng xuất</span></button>
+      <div class="who"><b>${esc(S.me.hoTen)}</b><small>${esc(roleLabel(S.me))} · ${esc(scope)}</small></div>
+    </aside>
+    <main class="main">${B.mode === "demo" ? `<div class="demo-bar">Chế độ demo: dữ liệu hư cấu, chỉ lưu trên trình duyệt này. Điền cấu hình Firebase trong mã nguồn để dùng thật. <a href="#" onclick="App.resetDemo(event)">Đặt lại dữ liệu demo</a></div>` : ""}${body()}</main>
+  </div>`;
+  afterRender();
+}
+function afterRender() {
+  const q = $("#st_q"); if (q && S._focusQ) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); S._focusQ = false; }
+}
+const top = (title, actions = "") => `<div class="top"><h1>${title}</h1><div class="actions">${actions}</div></div>`;
+
+/* ============================ TỔNG QUAN ============================ */
+function bars(entries, max) {
+  max = max || Math.max(1, ...entries.map(e => e[1]));
+  if (!entries.length) return `<div class="empty">Chưa có dữ liệu</div>`;
+  return `<div class="bars">${entries.map(([l, n]) => `<div class="row"><span title="${esc(l)}">${esc(l)}</span><div class="track"><div class="fill" style="width:${(n / max) * 100}%"></div></div><span class="n">${n}</span></div>`).join("")}</div>`;
+}
+function countBy(arr, fn) { const m = new Map(); arr.forEach(x => { const k = fn(x); m.set(k, (m.get(k) || 0) + 1); }); return [...m.entries()]; }
+function viewDash() {
+  const all = visibleStaff(), W = all.filter(working);
+  const nu = W.filter(s => s.coBan?.gioiTinh === "Nữ").length;
+  const dang = W.filter(s => s.dangDoan?.ngayVaoDang).length;
+  const raise = W.map(s => ({ s, d: nextRaise(s) })).filter(x => x.d && daysTo(x.d) <= 90).sort((a, b) => a.d - b.d);
+  const retire = W.map(s => ({ s, d: retireDate(s) })).filter(x => x.d && daysTo(x.d) <= 365).sort((a, b) => a.d - b.d);
+  const hd = W.map(s => ({ s, d: parseISO(s.coBan?.hdDen) })).filter(x => x.d && daysTo(x.d) <= 60).sort((a, b) => a.d - b.d);
+  const cert = []; W.forEach(s => (s.daoTao?.chungChi || []).forEach(c => { const d = parseISO(c.hetHan); if (d && daysTo(d) <= 90) cert.push({ s, c, d }); })); cert.sort((a, b) => a.d - b.d);
+  const byDept = countBy(W, s => deptName(s.khoaId) || "(chưa gán khoa)").sort((a, b) => b[1] - a[1]);
+  const tdOrder = [...OPT.trinhDo.slice(1), "Chưa rõ"];
+  const byTD = countBy(W, trinhDoOf).sort((a, b) => tdOrder.indexOf(a[0]) - tdOrder.indexOf(b[0]));
+  const ageG = ["Dưới 30", "30–39", "40–49", "50–54", "Từ 55"];
+  const byAge = ageG.map(g => [g, W.filter(s => { const a = age(s); if (a == null) return false; return g === "Dưới 30" ? a < 30 : g === "30–39" ? a < 40 && a >= 30 : g === "40–49" ? a >= 40 && a < 50 : g === "50–54" ? a >= 50 && a < 55 : a >= 55; }).length]);
+  const byDT = countBy(W, s => s.doiTuong || "Khác").sort((a, b) => b[1] - a[1]);
+  const lastYear = String(new Date().getFullYear() - 1);
+  const byDG = countBy(W.filter(s => (s.danhGia?.ds || []).some(r => r.nam === lastYear)), s => s.danhGia.ds.find(r => r.nam === lastYear).ketQua || "Chưa nhập").sort((a, b) => OPT.ketQua.indexOf(a[0]) - OPT.ketQua.indexOf(b[0]));
+  const row = (x, extra) => `<tr class="click" onclick="App.open('${x.s.id}')"><td>${esc(nameOf(x.s))}<div class="muted" style="font-size:12px">${esc(deptName(x.s.khoaId))}</div></td><td>${extra}</td></tr>`;
+  const due = d => { const n = daysTo(d); return n < 0 ? `<span class="tag bad">Quá ${-n} ngày</span>` : n <= 30 ? `<span class="tag warn">Còn ${n} ngày</span>` : `<span class="tag">Còn ${n} ngày</span>`; };
+  return top(isAdmin() ? "Tổng quan nhân lực toàn bệnh viện" : `Tổng quan nhân lực — ${esc(deptName(S.me.khoaId))}`) + `
+  <div class="grid kpis">
+    <div class="card kpi"><div class="v">${W.length}</div><div class="l">Đang làm việc${all.length > W.length ? ` · ${all.length - W.length} đã nghỉ/chuyển` : ""}</div></div>
+    <div class="card kpi"><div class="v">${W.length ? Math.round(nu / W.length * 100) : 0}%</div><div class="l">Nữ (${nu} người)</div></div>
+    <div class="card kpi"><div class="v">${dang}</div><div class="l">Đảng viên</div></div>
+    <div class="card kpi"><div class="v" style="color:${raise.length ? "var(--warn)" : "inherit"}">${raise.length}</div><div class="l">Đến hạn nâng lương ≤ 90 ngày</div></div>
+    <div class="card kpi"><div class="v">${retire.length}</div><div class="l">Nghỉ hưu trong 12 tháng</div></div>
+    <div class="card kpi"><div class="v" style="color:${cert.length ? "var(--bad)" : "inherit"}">${cert.length}</div><div class="l">Chứng chỉ hết hạn ≤ 90 ngày</div></div>
+    <div class="card kpi"><div class="v" style="color:${hd.length ? "var(--warn)" : "inherit"}">${hd.length}</div><div class="l">HĐ / thực hành / học việc hết hạn ≤ 60 ngày</div></div>
+  </div>
+  <div class="grid two" style="margin-top:14px">
+    ${isAdmin() ? `<div class="card"><h3>Theo khoa / phòng</h3>${bars(byDept)}</div>` : ""}
+    <div class="card"><h3>Theo trình độ chuyên môn</h3>${bars(byTD)}</div>
+    <div class="card"><h3>Theo nhóm tuổi</h3>${bars(byAge)}</div>
+    <div class="card"><h3>Theo đối tượng</h3>${bars(byDT)}</div>
+    <div class="card"><h3>Phân loại đánh giá năm ${lastYear}</h3>${bars(byDG)}</div>
+  </div>
+  <div class="grid two" style="margin-top:14px">
+    <div class="card"><h3>Đến hạn nâng lương thường xuyên</h3>${raise.length ? `<div class="tbl-wrap"><table class="t"><tbody>${raise.map(x => row(x, `${fmtD(x.d)} · bậc ${esc(x.s.luong?.bac || "?")} → ${(+x.s.luong?.bac || 0) + 1} ${due(x.d)}`)).join("")}</tbody></table></div>` : `<div class="empty">Không có</div>`}
+      <div class="muted" style="font-size:12px;margin-top:6px">Tính từ “Ngày hưởng” + chu kỳ 3 năm (2 năm với ngạch cao đẳng trở xuống). Chưa trừ thời gian kéo dài do kỷ luật / không hoàn thành nhiệm vụ.</div></div>
+    <div class="card"><h3>Nghỉ hưu trong 12 tháng tới</h3>${retire.length ? `<div class="tbl-wrap"><table class="t"><tbody>${retire.map(x => row(x, `Đủ tuổi ${fmtD(x.d)} ${due(x.d)}`)).join("")}</tbody></table></div>` : `<div class="empty">Không có</div>`}
+      <div class="muted" style="font-size:12px;margin-top:6px">Theo lộ trình tuổi nghỉ hưu tại Nghị định 135/2020/NĐ-CP (điều kiện lao động bình thường).</div></div>
+    <div class="card"><h3>Hợp đồng, thực hành, học việc sắp/đã hết hạn</h3>${hd.length ? `<div class="tbl-wrap"><table class="t"><tbody>${hd.map(x => row(x, `${esc(x.s.doiTuong || "")} · đến ${fmtD(x.d)} ${due(x.d)}`)).join("")}</tbody></table></div>` : `<div class="empty">Không có</div>`}
+      <div class="muted" style="font-size:12px;margin-top:6px">Theo ô “đến ngày” ở tab I. Thông tin cơ bản.</div></div>
+    <div class="card"><h3>Chứng chỉ sắp/đã hết hạn</h3>${cert.length ? `<div class="tbl-wrap"><table class="t"><tbody>${cert.map(x => row(x, `${esc(x.c.ten)} · hết hạn ${fmtD(x.d)} ${due(x.d)}`)).join("")}</tbody></table></div>` : `<div class="empty">Không có</div>`}</div>
+  </div>`;
+}
+
+/* ============================ DANH SÁCH ============================ */
+function filteredStaff() {
+  const f = S.f, q = norm(f.q);
+  return visibleStaff().filter(s => {
+    if (f.khoa && s.khoaId !== f.khoa) return false;
+    if (f.tt === "working" && !working(s)) return false;
+    if (f.tt && f.tt !== "working" && s.trangThai !== f.tt) return false;
+    if (f.dt && s.doiTuong !== f.dt) return false;
+    if (q) { const hay = norm([s.coBan?.hoTen, s.coBan?.soCCCD, s.coBan?.maCB, s.luong?.chucVu, s.luong?.ngach, s.coBan?.dienThoai].join(" ")); if (!hay.includes(q)) return false; }
+    return true;
+  }).sort((a, b) => (deptName(a.khoaId)).localeCompare(deptName(b.khoaId), "vi") || (a.coBan?.hoTen || "").split(" ").at(-1).localeCompare((b.coBan?.hoTen || "").split(" ").at(-1), "vi"));
+}
+function viewStaff() {
+  const list = filteredStaff();
+  const canAdd = isAdmin() || canManage(S.me.khoaId);
+  const acts = `${canAdd ? `<button class="btn pri" onclick="App.newStaff()">+ Thêm hồ sơ</button>` : ""}${canExport() ? `<button class="btn" onclick="App.exportXlsx()">Xuất Excel đầy đủ</button>` : ""}`;
+  const noProf = (isAdmin() || isTK()) ? S.users.filter(u => u.active && !u.staffId && (isAdmin() || u.khoaId === S.me.khoaId)) : [];
+  const banner = noProf.length ? `<div class="note"><b>${noProf.length} tài khoản chưa có hồ sơ nhân sự</b> (chưa hiện trong danh sách dưới). Người dùng tự khai bằng mục <i>Hồ sơ của tôi</i>, hoặc bấm tên để tạo hồ sơ hộ:
+    <div class="files" style="margin-top:6px">${noProf.map(u => `<button class="btn sm" onclick="App.newStaffFor('${u.id}')">+ ${esc(u.hoTen)} <span class="muted">· ${esc(roleLabel(u))}${deptName(u.khoaId) ? " · " + esc(deptName(u.khoaId)) : ""}</span></button>`).join("")}</div></div>` : "";
+  return top(`Hồ sơ nhân sự <span class="muted" style="font-weight:400;font-size:14px">(${list.length})</span>`, acts) + banner + `
+  <div class="filters">
+    <input type="text" id="st_q" placeholder="Tìm theo tên, CCCD, mã CB, chức vụ, điện thoại…" value="${esc(S.f.q)}" oninput="App.filt('q',this.value,1)">
+    ${isAdmin() ? `<select onchange="App.filt('khoa',this.value)"><option value="">Tất cả khoa/phòng</option>${S.depts.map(d => `<option value="${d.id}" ${S.f.khoa === d.id ? "selected" : ""}>${esc(d.ten)}</option>`).join("")}</select>` : ""}
+    <select onchange="App.filt('tt',this.value)"><option value="working" ${S.f.tt === "working" ? "selected" : ""}>Đang công tác</option><option value="" ${S.f.tt === "" ? "selected" : ""}>Tất cả trạng thái</option>${OPT.trangThai.map(t => `<option ${S.f.tt === t ? "selected" : ""}>${t}</option>`).join("")}</select>
+    <select onchange="App.filt('dt',this.value)"><option value="">Mọi đối tượng</option>${OPT.doiTuong.map(t => `<option ${S.f.dt === t ? "selected" : ""}>${t}</option>`).join("")}</select>
+  </div>
+  <div class="tbl-wrap"><table class="t"><thead><tr><th>#</th><th>Họ và tên</th><th>Khoa / phòng</th><th>Chức vụ</th><th>Chức danh nghề nghiệp</th><th>Bậc / hệ số</th><th>Trình độ</th><th>Nâng lương tới</th><th>TK</th></tr></thead><tbody>
+  ${list.map((s, i) => { const r = nextRaise(s); const n = r ? daysTo(r) : null; return `<tr class="click" onclick="App.open('${s.id}')">
+    <td class="num">${i + 1}</td>
+    <td><b>${esc(nameOf(s))}</b><div class="muted" style="font-size:12px">${fmtDate(s.coBan?.ngaySinh)}${s.coBan?.gioiTinh ? " · " + esc(s.coBan.gioiTinh) : ""}${working(s) ? "" : ` · <span class="tag bad">${esc(s.trangThai)}</span>`}</div></td>
+    <td>${esc(deptName(s.khoaId))}</td><td>${esc(s.luong?.chucVu || "")}</td>
+    <td>${esc(s.luong?.ngach || "")}<div class="muted" style="font-size:12px">${esc(s.luong?.maNgach || "")}</div></td>
+    <td>${esc(s.luong?.bac || "")}${s.luong?.heSo ? " / " + esc(s.luong.heSo) : ""}</td>
+    <td>${esc(trinhDoOf(s))}</td>
+    <td>${r ? `${fmtD(r)}${n <= 90 ? ` <span class="tag ${n < 0 ? "bad" : "warn"}">${n < 0 ? "quá hạn" : n + " ngày"}</span>` : ""}` : ""}</td>
+    <td>${s.uid ? `<span class="tag ok" title="Đã có tài khoản">✓</span>` : ""}</td></tr>`; }).join("") || `<tr><td colspan="9" class="empty">Không có hồ sơ phù hợp</td></tr>`}
+  </tbody></table></div>`;
+}
+
+/* ============================ HỒ SƠ ============================ */
+async function openProfile(id, mine) {
+  const s = S.staff.find(x => x.id === id) || await B.get("staff", id).catch(() => null);
+  if (!s) { toast("Không tìm thấy hồ sơ hoặc không có quyền xem", 1); return; }
+  S.cur = id; S.draft = clone(s); SECTIONS.forEach(sec => { S.draft[sec.key] = S.draft[sec.key] || {}; sec.tables.forEach(t => S.draft[sec.key][t.key] = S.draft[sec.key][t.key] || []); });
+  S.edit = false; S.tab = 0; S.photo = null; S.photoDirty = false; S.view = mine ? "mine" : "profile";
+  S.autoEdit = false;
+  if (isSelf(S.draft) && canEdit(S.draft) && completeness(S.draft) < 50) { S.edit = true; S.autoEdit = true; }
+  render();
+  B.get("photos", id).then(p => { if (S.cur === id && p?.data) { S.photo = p.data; const el = $("#ph_box"); if (el) el.innerHTML = `<img src="${p.data}" alt="">`; } }).catch(() => {});
+}
+function fieldInput(path, f, val, ro) {
+  const [k, label, type, o = {}] = f;
+  if (k === "trangThai" && S.draft && !canManage(S.draft.khoaId)) ro = true;
+  const a = `data-path="${path}" ${ro ? "disabled" : ""}`;
+  let inp;
+  if (type === "sel") { const opts = [...o.opts]; if (val && !opts.includes(val)) opts.push(val); inp = `<select ${a}>${opts.map(x => `<option ${x === (val || "") ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>`; }
+  else if (type === "dept") { const ds = isAdmin() ? S.depts : S.depts.filter(d => d.id === S.me.khoaId || d.id === val); inp = `<select ${a} ${isAdmin() ? "" : "disabled"}><option value="">— chọn —</option>${ds.map(d => `<option value="${d.id}" ${d.id === val ? "selected" : ""}>${esc(d.ten)}</option>`).join("")}</select>`; }
+  else if (type === "files") return `<div class="f wide" style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">${esc(label)}${filesHTML(path, -1, val, true)}</div>`;
+  else if (type === "area") inp = `<textarea ${a}>${esc(val)}</textarea>`;
+  else if (type === "date") inp = `<input type="date" ${a} value="${esc(val)}">`;
+  else if (type === "num") inp = `<input type="text" inputmode="decimal" ${a} value="${esc(val)}">`;
+  else inp = `<input type="text" ${a} value="${esc(val)}">`;
+  return `<label class="f ${o.wide || type === "area" ? "wide" : ""}">${esc(label)}${o.req ? " *" : ""}${inp}</label>`;
+}
+function showVal(f, v) { if (!v) return `<span class="muted">—</span>`; if (f[2] === "date") return fmtDate(v); if (f[2] === "dept") return esc(deptName(v)); return esc(v); }
+function sectionHTML(sec, s, editable) {
+  const d = s[sec.key] || {};
+  let h = "";
+  if (sec.fields.length) {
+    if (editable) h += `<div class="form">${sec.fields.map(f => fieldInput(f[3]?.top ? f[0] : `${sec.key}.${f[0]}`, f, f[3]?.top ? s[f[0]] : d[f[0]], false)).join("")}</div>`;
+    else h += `<div class="kv">${sec.fields.map(f => `<div class="${f[3]?.wide || f[2] === "area" || f[2] === "files" ? "wide" : ""}"><div class="k">${esc(f[1])}</div><div class="v">${f[2] === "files" ? (filesHTML(`${sec.key}.${f[0]}`, -1, d[f[0]], false) || `<span class="muted">—</span>`) : showVal(f, f[3]?.top ? s[f[0]] : d[f[0]])}</div></div>`).join("")}</div>`;
+  }
+  sec.tables.forEach(t => {
+    const rows = d[t.key] || [];
+    h += `<div class="subt"><b>${esc(t.title)}</b><span class="muted">(${rows.length})</span><span class="sp"></span>${editable ? `<button class="btn sm" onclick="App.addRow('${sec.key}','${t.key}')">+ Thêm dòng</button>` : ""}</div>`;
+    if (!rows.length && !editable) { h += `<div class="muted" style="font-size:13px">Chưa có dữ liệu</div>`; return; }
+    if (editable) {
+      h += `<div class="tbl-wrap"><table class="et"><thead><tr>${t.cols.map(c => `<th>${esc(c[1])}</th>`).join("")}<th></th></tr></thead><tbody>${rows.map((r, i) => `<tr>${t.cols.map(c => {
+        const a = `data-tbl="${sec.key}.${t.key}" data-row="${i}" data-col="${c[0]}"`; const v = r[c[0]] ?? "";
+        if (c[2] === "sel") { const opts = ["", ...c[3].opts]; if (v && !opts.includes(v)) opts.push(v); return `<td><select ${a}>${opts.map(x => `<option ${x === v ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></td>`; }
+        if (c[2] === "area") return `<td style="min-width:260px"><textarea ${a}>${esc(v)}</textarea></td>`;
+        if (c[2] === "date") return `<td><input type="date" ${a} value="${esc(v)}"></td>`;
+        if (c[2] === "files") return `<td class="fcell">${filesHTML(`${sec.key}.${t.key}`, i, r.tep, true)}</td>`;
+        return `<td><input type="text" ${a} value="${esc(v)}" ${c[2] === "month" ? 'placeholder="mm/yyyy" style="width:96px"' : c[2] === "num" ? 'style="width:70px"' : ""}></td>`;
+      }).join("")}<td><button class="x" title="Xóa dòng" onclick="App.delRow('${sec.key}','${t.key}',${i})">×</button></td></tr>`).join("")}</tbody></table></div>`;
+    } else {
+      h += `<div class="tbl-wrap"><table class="t"><thead><tr>${t.cols.map(c => `<th>${esc(c[1])}</th>`).join("")}</tr></thead><tbody>${rows.map((r, i) => `<tr>${t.cols.map(c => c[2] === "files" ? `<td>${filesHTML(`${sec.key}.${t.key}`, i, r.tep, false)}</td>` : `<td style="white-space:pre-wrap">${esc(c[2] === "date" ? fmtDate(r[c[0]]) : r[c[0]] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+    }
+  });
+  return h;
+}
+function viewProfile() {
+  const s = S.draft;
+  if (!s) {
+    const canMake = canMakeMine();
+    return top("Hồ sơ của tôi") + `<div class="card" style="max-width:640px"><h3>Tài khoản chưa liên kết với hồ sơ nhân sự</h3>
+      <p class="muted" style="margin:0 0 12px">Có hai cách:</p>
+      <ol style="margin:0 0 14px;padding-left:20px;line-height:1.7">
+        <li><b>Nếu Phòng TCHC/Trưởng khoa đã nhập hồ sơ của bạn</b> (ví dụ nhập từ Mẫu 2C): nhờ Trưởng khoa vào <i>Tài khoản → Sửa</i> tài khoản của bạn → chọn hồ sơ ở ô <i>Liên kết hồ sơ nhân sự</i>.</li>
+        <li><b>Nếu chưa có hồ sơ</b>: ${canMake ? "bấm nút dưới đây để tự khai hồ sơ của mình." : "nhờ Trưởng khoa tạo hồ sơ, hoặc cấp quyền “Tự cập nhật hồ sơ của mình” để bạn tự tạo."}</li>
+      </ol>
+      ${canMake ? `<button class="btn pri" onclick="App.createMine()">Tạo hồ sơ của tôi</button>` : ""}</div>`;
+  }
+  const isNew = !S.cur;
+  const ed = S.edit, ce = canEdit(s) || isNew;
+  const sec = SECTIONS[S.tab];
+  const secEditable = ed && (isNew ? (!S.selfNew || canManage(s.khoaId) || SELF_KEYS.includes(sec.key)) : canEditSec(s, sec.key));
+  const r = nextRaise(s), rt = retireDate(s), a = age(s);
+  const back = S.view === "profile" && canList() ? `<button class="btn" onclick="App.go('staff')">← Danh sách</button>` : "";
+  const acts = ed ? `<button class="btn" onclick="App.cancelEdit()">Hủy</button><button class="btn pri" onclick="App.save()">Lưu hồ sơ</button>`
+    : `${back}${canExport() || isSelf(s) ? `<button class="btn" onclick="App.export2C()">Xuất Mẫu 2C (Word)</button>` : ""}${ce ? `<button class="btn pri" onclick="App.startEdit()">${isSelf(s) && completeness(s) < 80 ? "Khai / cập nhật hồ sơ" : "Chỉnh sửa"}</button>` : ""}${isAdmin() && !isNew ? `<button class="btn bad" onclick="App.delStaff()">Xóa</button>` : ""}`;
+  const pct = isNew ? 0 : completeness(s);
+  const selfNote = !isNew && isSelf(s) && pct < 80 ? `<div class="note">${ed ? `<b>Hồ sơ của bạn mới khai khoảng ${pct}%.</b> Điền lần lượt các tab (bấm tên tab phía trên khung dưới, kéo ngang để xem hết), bấm vào ô ảnh để tải ảnh thẻ, rồi bấm <b>Lưu hồ sơ</b>.` : `<b>Hồ sơ của bạn mới khai khoảng ${pct}%.</b> Bấm nút <b>Khai / cập nhật hồ sơ</b> ở góc phải để bổ sung.`}</div>` : "";
+  return top(isNew ? (S.selfNew ? "Hồ sơ của tôi — khai lần đầu" : "Thêm hồ sơ mới") : (S.view === "mine" ? "Hồ sơ của tôi" : "Hồ sơ nhân sự"), acts) + selfNote + (S.selfNew ? `<div class="note"><b>Chào ${esc(S.me.hoTen)}, bạn chưa có hồ sơ trên hệ thống.</b> Hãy điền lần lượt các tab, bấm vào ô ảnh để tải ảnh thẻ, rồi bấm <b>Lưu hồ sơ</b>. Khoa/phòng và trạng thái công tác do Trưởng khoa / Phòng TCHC quản lý. Sau lần lưu đầu tiên bạn có thể đính kèm bản scan văn bằng, chứng chỉ.<br><span class="muted">Nếu Phòng TCHC đã nhập hồ sơ của bạn từ phần mềm CCVC, đừng tạo mới: hãy nhờ Trưởng khoa liên kết tài khoản với hồ sơ đó.</span></div>` : "") + `
+  <div class="card">
+    <div class="phead">
+      <div class="photo ${ed ? "edit" : ""}" id="ph_box" ${ed ? `onclick="App.pickPhoto()" title="Bấm để chọn ảnh"` : ""}>${S.photo ? `<img src="${S.photo}" alt="">` : (ed ? "Bấm để<br>chọn ảnh" : "Chưa có ảnh")}</div>
+      <div class="info">
+        <h2>${esc(nameOf(s))}</h2>
+        <div class="chips">
+          ${s.khoaId ? `<span class="tag pri">${esc(deptName(s.khoaId))}</span>` : ""}
+          ${s.luong?.chucVu ? `<span class="tag">${esc(s.luong.chucVu)}</span>` : ""}
+          <span class="tag ${working(s) ? "ok" : "bad"}">${esc(s.trangThai || "")}</span>
+          ${s.doiTuong ? `<span class="tag">${esc(s.doiTuong)}</span>` : ""}
+          ${s.dangDoan?.ngayVaoDang ? `<span class="tag">Đảng viên</span>` : ""}
+          ${s.uid ? `<span class="tag ok">Có tài khoản</span>` : ""}
+        </div>
+        <div class="muted" style="font-size:13px">
+          ${a != null ? `${a} tuổi · ` : ""}${s.luong?.ngach ? esc(s.luong.ngach) : ""}${s.luong?.maNgach ? ` (${esc(s.luong.maNgach)})` : ""}${s.luong?.bac ? ` · bậc ${esc(s.luong.bac)}` : ""}${s.luong?.heSo ? `, hệ số ${esc(s.luong.heSo)}` : ""}<br>
+          ${r ? `Nâng lương dự kiến: <b>${fmtD(r)}</b> · ` : ""}${rt ? `Đủ tuổi nghỉ hưu: <b>${fmtD(rt)}</b>` : ""}
+        </div>
+        ${s.updatedAt ? `<div class="muted" style="font-size:12px;margin-top:4px">Cập nhật ${fmtDT(s.updatedAt)}${s.updatedBy ? " bởi " + esc(s.updatedBy) : ""}</div>` : ""}
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="tabs">${SECTIONS.map((x, i) => `<button class="tab ${i === S.tab ? "on" : ""}" onclick="App.tab(${i})">${x.no}. ${esc(x.title)}${ed && !(isNew ? (!S.selfNew || canManage(s.khoaId) || SELF_KEYS.includes(x.key)) : canEditSec(s, x.key)) ? ` <span class="lock" title="Chỉ trưởng khoa/TCHC được sửa">🔒</span>` : ""}</button>`).join("")}</div>
+    ${ed && !secEditable ? `<div class="note">Mục này do Trưởng khoa / Phòng TCHC cập nhật.</div>` : ""}
+    <div id="sec_body">${sectionHTML(sec, s, secEditable)}</div>
+    ${ed ? `<div class="sticky-save"><span class="muted" style="margin-right:auto;font-size:12.5px;align-self:center">Dữ liệu ở các tab được giữ khi chuyển tab. Bấm “Lưu hồ sơ” để ghi lại.</span><button class="btn" onclick="App.cancelEdit()">Hủy</button><button class="btn pri" onclick="App.save()">Lưu hồ sơ</button></div>` : ""}
+  </div>`;
+}
+function syncForm() {
+  if (!S.edit || !S.draft) return;
+  $$("[data-path]").forEach(el => { if (!el.disabled || el.tagName === "SELECT") setP(S.draft, el.dataset.path, el.value.trim ? el.value.trim() : el.value); });
+  $$("[data-tbl]").forEach(el => { const arr = getP(S.draft, el.dataset.tbl); const r = arr?.[+el.dataset.row]; if (r) r[el.dataset.col] = el.value; });
+}
+async function compressImage(src, w = 240, h = 320) {
+  const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const r = Math.max(w / img.width, h / img.height), dw = img.width * r, dh = img.height * r;
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+  return c.toDataURL("image/jpeg", 0.82);
+}
+const readAs = (file, how) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r[how](file); });
+
+/* ============================ TÀI KHOẢN ============================ */
+function viewAccounts() {
+  const list = S.users.slice().sort((a, b) => (["admin", "truongkhoa", "nhanvien"].indexOf(a.role) - ["admin", "truongkhoa", "nhanvien"].indexOf(b.role)) || deptName(a.khoaId).localeCompare(deptName(b.khoaId), "vi") || a.hoTen.localeCompare(b.hoTen, "vi"));
+  const acts = `<button class="btn" onclick="App.bulkAcc()">Tạo hàng loạt cho nhân viên chưa có TK</button><button class="btn pri" onclick="App.accForm()">+ Tạo tài khoản</button>`;
+  return top("Tài khoản & phân quyền", acts) + `
+  <div class="note">${isAdmin() ? "Quản trị (Phòng TCHC) tạo tài khoản cho Trưởng khoa/phòng và có thể tạo, khóa mọi tài khoản. Trưởng khoa tạo và phân quyền cho nhân viên trong khoa mình." : "Bạn tạo và phân quyền tài khoản cho nhân viên trong khoa. Nhân viên phải đổi mật khẩu ở lần đăng nhập đầu tiên."}
+  Mật khẩu được mã hóa nên không ai xem lại được. Khi nhân viên quên mật khẩu, bấm <b>Đặt lại MK</b> để tạo mật khẩu tạm mới rồi đưa cho họ.</div>
+  <div class="tbl-wrap"><table class="t"><thead><tr><th>Họ và tên</th><th>Tên đăng nhập</th><th>Vai trò</th><th>Khoa / phòng</th><th>Hồ sơ liên kết</th><th>Quyền</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+  ${list.map(u => { const st = S.staff.find(x => x.id === u.staffId); const editable = isAdmin() || (isTK() && u.role === "nhanvien") || (isMgrNV() && u.role === "nhanvien" && !u.perms?.manageAcc); return `<tr>
+    <td><b>${esc(u.hoTen)}</b>${u.lastLogin ? `<div class="muted" style="font-size:12px">Đăng nhập: ${fmtDT(u.lastLogin)}</div>` : ""}</td>
+    <td>${esc(u.login || u.email)}</td><td>${esc(roleLabel(u))}</td><td>${esc(deptName(u.khoaId))}</td>
+    <td>${st ? esc(nameOf(st)) : `<span class="muted">—</span>`}</td>
+    <td style="font-size:12px">${u.role === "nhanvien" ? (PERMS.filter(p => u.perms?.[p[0]]).map(p => p[1].split(" (")[0]).join("; ") || `<span class="muted">Chỉ xem hồ sơ của mình</span>`) : `<span class="muted">Theo vai trò</span>`}</td>
+    <td>${u.active ? `<span class="tag ok">Hoạt động</span>` : `<span class="tag bad">Đã khóa</span>`}${u.mustChangePw ? ` <span class="tag warn">Chưa đổi MK</span>` : ""}</td>
+    <td style="white-space:nowrap">${editable && u.id !== S.user.uid ? `<button class="btn sm" onclick="App.accForm('${u.id}')">Sửa</button> ${B.mode === "demo" || DRIVE_UPLOAD_URL ? `<button class="btn sm" onclick="App.resetPw('${u.id}')" title="Tạo mật khẩu tạm mới khi người dùng quên mật khẩu">Đặt lại MK</button> ` : ""}<button class="btn sm ${u.active ? "bad" : ""}" onclick="App.toggleAcc('${u.id}')">${u.active ? "Khóa" : "Mở"}</button>` : ""}</td></tr>`; }).join("") || `<tr><td colspan="8" class="empty">Chưa có tài khoản</td></tr>`}
+  </tbody></table></div>`;
+}
+function genLogin(name, taken) {
+  const w = noAccent(name).toLowerCase().replace(/[^a-z\s]/g, "").trim().split(/\s+/).filter(Boolean);
+  if (!w.length) return "nv" + Math.floor(Math.random() * 9999);
+  let base = w.at(-1) + w.slice(0, -1).map(x => x[0]).join(""), l = base, i = 2;
+  while (taken.has(l)) l = base + i++;
+  taken.add(l); return l;
+}
+
+/* ============================ KHOA / PHÒNG ============================ */
+function viewDepts() {
+  const cnt = id => S.staff.filter(s => s.khoaId === id && working(s)).length;
+  const tk = id => S.users.filter(u => u.khoaId === id && u.role === "truongkhoa").map(u => u.hoTen).join(", ");
+  return top("Danh mục khoa / phòng", `${!S.depts.length ? `<button class="btn" onclick="App.seedDepts()">Tạo danh mục mẫu</button>` : ""}<button class="btn pri" onclick="App.deptForm()">+ Thêm khoa/phòng</button>`) + `
+  <div class="tbl-wrap"><table class="t"><thead><tr><th>TT</th><th>Tên khoa / phòng</th><th>Mã</th><th>Đang công tác</th><th>Tài khoản trưởng khoa</th><th></th></tr></thead><tbody>
+  ${S.depts.map(d => `<tr><td class="num">${d.thuTu || ""}</td><td><b>${esc(d.ten)}</b></td><td>${esc(d.ma || "")}</td><td class="num">${cnt(d.id)}</td><td>${esc(tk(d.id)) || `<span class="muted">—</span>`}</td>
+    <td style="white-space:nowrap"><button class="btn sm" onclick="App.deptForm('${d.id}')">Sửa</button> <button class="btn sm bad" onclick="App.delDept('${d.id}')">Xóa</button></td></tr>`).join("") || `<tr><td colspan="6" class="empty">Chưa có khoa/phòng</td></tr>`}
+  </tbody></table></div>`;
+}
+
+/* ============================ NHẬT KÝ / CÀI ĐẶT ============================ */
+function viewLogs() {
+  if (!S.logs) { loadLogs(); return top("Nhật ký thao tác") + `<div class="empty">Đang tải…</div>`; }
+  return top("Nhật ký thao tác", `<button class="btn" onclick="App.reloadLogs()">Tải lại</button>`) + `
+  <div class="tbl-wrap"><table class="t"><thead><tr><th>Thời gian</th><th>Người thực hiện</th><th>Thao tác</th><th>Đối tượng</th><th>Khoa</th></tr></thead><tbody>
+  ${S.logs.map(l => `<tr><td style="white-space:nowrap">${fmtDT(l.at)}</td><td>${esc(l.ten)}</td><td>${esc(l.action)}</td><td>${l.staffId ? `<a href="#" onclick="App.open('${l.staffId}');return false">${esc(l.doiTuong)}</a>` : esc(l.doiTuong)}</td><td>${esc(deptName(l.khoaId))}</td></tr>`).join("") || `<tr><td colspan="5" class="empty">Chưa có nhật ký</td></tr>`}
+  </tbody></table></div>`;
+}
+async function loadLogs() {
+  try {
+    let L = isAdmin() ? await B.list("logs", [], { orderBy: "at", dir: "desc", limit: 300 }) : await B.list("logs", [["khoaId", "==", S.me.khoaId]]);
+    S.logs = L.sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 300);
+  } catch (e) { S.logs = []; toast(errMsg(e), 1); }
+  if (S.view === "logs") render();
+}
+function viewSettings() {
+  return top("Cài đặt") + `<div class="card" style="max-width:640px"><div class="form">
+    <label class="f wide">Tên bệnh viện<input type="text" id="se_bv" value="${esc(S.settings.tenBV)}"></label>
+    <label class="f wide">Cơ quan, đơn vị có thẩm quyền quản lý CBCC (in trên Mẫu 2C)<input type="text" id="se_ql" value="${esc(S.settings.coQuanQL)}"></label>
+  </div><div class="foot" style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn pri" onclick="App.saveSettings()">Lưu</button></div></div>`;
+}
+
+/* ============================ NHẬP DỮ LIỆU ============================ */
+function viewImport() {
+  if (!canImportAll()) return viewImportSelf();
+  const tab = S.impTab || "2c";
+  let h = top("Nhập dữ liệu") + `<div class="tabs"><button class="tab ${tab === "2c" ? "on" : ""}" onclick="App.impTab('2c')">Từ Sơ yếu lý lịch (phần mềm CCVC)</button><button class="tab ${tab === "xl" ? "on" : ""}" onclick="App.impTab('xl')">Từ Excel</button></div>`;
+  if (tab === "2c") {
+    h += `<div class="note"><b>Lấy file từ phần mềm Quản lý CCVC (ccvcninhbinh.vnerp.vn):</b><ol>
+      <li>Mở hồ sơ viên chức → in <b>Sơ yếu lý lịch Mẫu 2C-BNV/2008</b> và/hoặc <b>Sơ yếu lý lịch theo TT06/2023/TT-BNV</b> → <b>Xuất Word</b> (file .doc). Mẫu TT06 có thêm khen thưởng, kỷ luật, kết quả đánh giá, hoàn cảnh kinh tế, bồi dưỡng, quy hoạch.</li>
+      <li>Lặp lại cho các viên chức cần nhập (hoặc xuất nhiều hồ sơ một lần nếu phần mềm hỗ trợ).</li>
+      <li>Kéo thả / chọn <b>nhiều file cùng lúc</b> vào ô dưới. Ứng dụng đọc đủ các mục 1–32, ảnh, quá trình đào tạo, công tác, quan hệ gia đình, diễn biến lương.</li></ol>
+      Hồ sơ đã có (trùng số CCCD/CMND, hoặc trùng họ tên + ngày sinh) sẽ được <b>cập nhật</b>: ô nào trong file có dữ liệu thì ghi đè, ô trống giữ nguyên. Có thể nhập cả hai mẫu cho cùng một người để bổ sung cho nhau.</div>
+      <div class="drop" id="drop2c" onclick="App.pick2C()" ondragover="event.preventDefault()" ondrop="App.drop2C(event)"><b>Chọn hoặc kéo thả file Sơ yếu lý lịch (2C hoặc TT06)</b><div class="muted">.doc xuất từ CCVC, .htm/.mht, hoặc .docx — chọn được nhiều file</div></div>`;
+    if (S.imp) h += importPreview();
+  } else {
+    h += `<div class="note">Dùng khi có danh sách Excel (ví dụ xuất danh sách từ CCVC, hoặc file mẫu của ứng dụng). Dòng tiêu đề sẽ được tự động ghép với các trường hồ sơ; bạn có thể chỉnh lại trước khi nhập. Có cột “ID hệ thống” (từ file Xuất Excel của ứng dụng) thì cập nhật đúng hồ sơ đó.</div>
+      <div class="actions" style="margin-bottom:12px"><button class="btn pri" onclick="App.pickXlsx()">Chọn file Excel</button><button class="btn" onclick="App.template()">Tải file mẫu</button></div>`;
+    if (S.xl) h += xlPreview();
+  }
+  return h;
+}
+function viewImportSelf() {
+  const me = S.staff.find(x => x.id === S.me.staffId);
+  let h = top("Nhập Sơ yếu lý lịch 2C của tôi") + `<div class="note"><b>Tự điền hồ sơ từ phần mềm Quản lý CCVC (ccvcninhbinh.vnerp.vn):</b><ol>
+      <li>Đăng nhập CCVC → mở hồ sơ của bạn → in <b>Sơ yếu lý lịch Mẫu 2C-BNV/2008</b> hoặc <b>theo TT06/2023/TT-BNV</b> → <b>Xuất Word</b> (file .doc). Nên nhập cả hai: mẫu TT06 có thêm khen thưởng, kỷ luật, đánh giá xếp loại, hoàn cảnh kinh tế.</li>
+      <li>Chọn file ở ô dưới. App đọc thông tin cá nhân, ảnh thẻ, đào tạo, công tác, gia đình, lương…</li>
+      <li>Kiểm tra kết quả rồi bấm <b>Điền vào hồ sơ của tôi</b>. Sau đó mở <i>Hồ sơ của tôi</i> để bổ sung phần còn thiếu.</li></ol>
+      ${me ? "Ô nào trong file có dữ liệu sẽ được cập nhật; ô trống và file scan đã đính kèm được giữ nguyên." : "Bạn chưa có hồ sơ: app sẽ tạo hồ sơ mới từ file."}</div>
+    <div class="drop" id="drop2c" onclick="App.pick2C()" ondragover="event.preventDefault()" ondrop="App.drop2C(event)"><b>Chọn hoặc kéo thả file Sơ yếu lý lịch của bạn (2C hoặc TT06)</b><div class="muted">.doc xuất từ CCVC, .htm/.mht, hoặc .docx</div></div>`;
+  const x = S.imp?.[0];
+  if (x) {
+    const d = x.data;
+    h += `<div class="card" style="margin-top:14px"><h3>Đọc được từ ${esc(x.file)} <span class="tag pri">${x.mau ? "Mẫu TT06/2023" : "Mẫu 2C-BNV/2008"}</span></h3>
+      ${x.warn ? `<div class="note" style="background:var(--warn-soft);color:var(--warn)">${esc(x.warn)}</div>` : ""}
+      <div class="kv">
+        <div><div class="k">Họ và tên</div><div class="v"><b>${esc(titleCase(d.coBan.hoTen))}</b></div></div>
+        <div><div class="k">Ngày sinh</div><div class="v">${fmtDate(d.coBan.ngaySinh) || "—"}</div></div>
+        <div><div class="k">Số CCCD/CMND</div><div class="v">${esc(d.coBan.soCCCD || "—")}</div></div>
+        <div><div class="k">Chức vụ</div><div class="v">${esc(d.luong.chucVu || "—")}</div></div>
+        <div><div class="k">Ngạch / hệ số</div><div class="v">${esc(d.luong.ngach || "—")} ${d.luong.heSo ? "· " + esc(d.luong.heSo) : ""}</div></div>
+        <div><div class="k">Đã đọc</div><div class="v">${d.daoTao.quaTrinh.length} dòng đào tạo · ${d.congTac.quaTrinh.length} dòng công tác · ${d.giaDinh.ds.length} người thân · ${d.luong.dienBien.length} mốc lương${x.mau ? ` · ${d.khenThuong.khen.length} khen thưởng · ${d.khenThuong.kyLuat.length} kỷ luật · ${d.danhGia.ds.length} năm đánh giá${d.kinhTe.thuNhap ? " · có hoàn cảnh kinh tế" : ""}` : ""}${x.photo ? " · có ảnh thẻ" : ""}</div></div>
+      </div>
+      <div class="actions" style="margin-top:14px;justify-content:flex-end"><button class="btn" onclick="App.impClear()">Bỏ</button><button class="btn pri" id="imp_self" onclick="App.impRunSelf()" ${x.block ? "disabled" : ""}>Điền vào hồ sơ của tôi</button></div></div>`;
+  }
+  return h;
+}
+function deptOptions(sel) {
+  const ds = isAdmin() ? S.depts : S.depts.filter(d => d.id === S.me.khoaId);
+  return `<option value="">— chọn khoa —</option>` + ds.map(d => `<option value="${d.id}" ${d.id === sel ? "selected" : ""}>${esc(d.ten)}</option>`).join("");
+}
+function importPreview() {
+  const L = S.imp, n = L.filter(x => x.inc && x.khoaId).length;
+  return `<div class="card" style="margin-top:14px"><h3>Kết quả đọc ${L.length} hồ sơ</h3>
+  <div class="tbl-wrap"><table class="t"><thead><tr><th><input type="checkbox" ${L.every(x => x.inc) ? "checked" : ""} onchange="App.impAll(this.checked)"></th><th>File</th><th>Họ tên</th><th>Ngày sinh</th><th>CCCD/CMND</th><th>Đơn vị trên 2C</th><th>Nhập vào khoa</th><th>Dữ liệu đọc được</th><th>Thao tác</th></tr></thead><tbody>
+  ${L.map((x, i) => { const d = x.data; return `<tr>
+    <td><input type="checkbox" ${x.inc ? "checked" : ""} onchange="App.impInc(${i},this.checked)"></td>
+    <td style="font-size:12px;max-width:180px;word-break:break-all">${esc(x.file)}</td>
+    <td><b>${esc(titleCase(d.coBan.hoTen))}</b>${x.photo ? ` <span class="tag">ảnh</span>` : ""}</td><td>${fmtDate(d.coBan.ngaySinh)}</td><td>${esc(d.coBan.soCCCD || "")}</td>
+    <td style="font-size:12px">${esc(x.donVi || "")}</td>
+    <td><select onchange="App.impKhoa(${i},this.value)" ${isAdmin() ? "" : "disabled"}>${deptOptions(x.khoaId)}</select></td>
+    <td style="font-size:12px"><span class="tag ${x.mau ? "pri" : ""}">${x.mau ? "TT06/2023" : "2C-BNV/2008"}</span><br>ĐT ${d.daoTao.quaTrinh.length} · CT ${d.congTac.quaTrinh.length} · GĐ ${d.giaDinh.ds.length} · Lương ${d.luong.dienBien.length}${x.mau ? ` · KT ${d.khenThuong.khen.length} · ĐG ${d.danhGia.ds.length}` : ""}</td>
+    <td>${x.match ? `<span class="tag warn">Cập nhật</span>` : `<span class="tag ok">Thêm mới</span>`}</td></tr>`; }).join("")}
+  </tbody></table></div>
+  <div class="prog" id="imp_prog" style="display:none"><div></div></div>
+  <div class="actions" style="margin-top:12px;justify-content:flex-end"><button class="btn" onclick="App.impClear()">Bỏ</button><button class="btn pri" onclick="App.impRun()" ${n ? "" : "disabled"}>Nhập ${n} hồ sơ</button></div></div>`;
+}
+function xlPreview() {
+  const X = S.xl;
+  const opts = `<option value="">— bỏ qua —</option><option value="_id">ID hệ thống</option>` + FLAT.map(f => `<option value="${f.path}">${f.sec.no}. ${esc(f.label)}</option>`).join("");
+  return `<div class="card"><h3>${esc(X.file)} — ${X.rows.length} dòng dữ liệu</h3>
+  <div class="form" style="margin-bottom:12px"><label class="f">Khoa mặc định (khi file không có cột khoa)<select id="xl_khoa" onchange="S_xlKhoa(this.value)">${deptOptions(X.khoaId)}</select></label></div>
+  <div class="tbl-wrap" style="max-height:420px"><table class="t"><thead><tr><th>Cột trong file</th><th>Ví dụ</th><th>Ghép vào trường</th></tr></thead><tbody>
+  ${X.head.map((hd, i) => `<tr><td><b>${esc(hd)}</b></td><td class="muted" style="font-size:12px">${esc(String(X.rows.find(r => r[i] !== "")?.[i] ?? "").slice(0, 40))}</td><td><select onchange="App.xlMap(${i},this.value)">${opts.replace(`value="${X.map[i]}"`, `value="${X.map[i]}" selected`)}</select></td></tr>`).join("")}
+  </tbody></table></div>
+  <div class="prog" id="xl_prog" style="display:none"><div></div></div>
+  <div class="actions" style="margin-top:12px;justify-content:flex-end"><button class="btn" onclick="App.xlClear()">Bỏ</button><button class="btn pri" onclick="App.xlRun()">Nhập ${X.rows.length} dòng</button></div></div>`;
+}
+window.S_xlKhoa = v => { S.xl.khoaId = v; };
+
+/* -------- Đọc Sơ yếu lý lịch 2C (HTML/MHTML từ CCVC) -------- */
+function decodeQP(s) {
+  s = s.replace(/=\r?\n/g, "");
+  const bytes = []; for (let i = 0; i < s.length; i++) { if (s[i] === "=" && /^[0-9A-F]{2}$/i.test(s.substr(i + 1, 2))) { bytes.push(parseInt(s.substr(i + 1, 2), 16)); i += 2; } else { const c = s.charCodeAt(i); if (c < 128) bytes.push(c); else bytes.push(...new TextEncoder().encode(s[i])); } }
+  return new TextDecoder("utf-8").decode(new Uint8Array(bytes));
+}
+function mhtmlToHtml(raw) {
+  const bm = /boundary="?([^"\r\n;]+)"?/i.exec(raw.slice(0, 2000));
+  if (!bm || !/^\s*(mime-version|content-)/i.test(raw.slice(0, 300))) return raw;
+  const parts = raw.split("--" + bm[1]).slice(1);
+  let html = "", res = {};
+  for (const p of parts) {
+    const sp = p.search(/\r?\n\r?\n/); if (sp < 0) continue;
+    const hd = p.slice(0, sp), body = p.slice(sp).replace(/^\s+/, "");
+    const ct = /content-type:\s*([^;\r\n]+)/i.exec(hd)?.[1]?.trim().toLowerCase() || "";
+    const enc = /content-transfer-encoding:\s*(\S+)/i.exec(hd)?.[1]?.toLowerCase() || "";
+    const loc = /content-location:\s*(\S+)/i.exec(hd)?.[1] || "";
+    if (ct.includes("html") && !html) html = enc === "quoted-printable" ? decodeQP(body) : enc === "base64" ? new TextDecoder().decode(Uint8Array.from(atob(body.replace(/\s+/g, "")), c => c.charCodeAt(0))) : body;
+    else if (ct.startsWith("image/") && enc === "base64" && loc) res[loc] = `data:${ct};base64,${body.replace(/[\s-]+$/g, "").replace(/\s+/g, "")}`;
+  }
+  Object.entries(res).forEach(([loc, data]) => { const name = loc.split("/").pop(); html = html.split(`"${loc}"`).join(`"${data}"`).split(`"${name}"`).join(`"${data}"`); });
+  return html || raw;
+}
+function textOf(node) {
+  const out = [];
+  (function walk(n) {
+    if (n.nodeType === 3) { out.push(n.nodeValue.replace(/[\r\n]+/g, " ")); return; }
+    if (n.nodeType !== 1) return;
+    const t = n.tagName; if (t === "STYLE" || t === "SCRIPT" || t === "HEAD") return;
+    const blk = /^(P|DIV|TR|TD|TH|BR|LI|H\d|TABLE|TBODY|UL|OL)$/.test(t);
+    if (blk) out.push("\n");
+    n.childNodes.forEach(walk);
+    if (blk) out.push("\n");
+  })(node);
+  return out.join("").replace(/\u00a0/g, " ").split("\n").map(l => l.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n");
+}
+const L2C = [
+  ["coQuanQL", "Cơ quan, đơn vị có thẩm quyền quản lý CBCC:"], ["donViSD", "Cơ quan, đơn vị sử dụng CBCC:"], ["_title", "SƠ YẾU LÝ LỊCH"],
+  ["hoTen", "1) Họ và tên khai sinh", 1], ["tenKhac", "2) Tên gọi khác:"], ["ngaySinh", "3) Sinh ngày:"], ["gioiTinh", "Giới tính:"],
+  ["noiSinh", "4) Nơi sinh:"], ["queQuan", "5) Quê quán:"], ["danToc", "6) Dân tộc:"], ["tonGiao", "7) Tôn giáo:"],
+  ["hoKhau", "8) Nơi đăng ký hộ khẩu thường trú", 1], ["noiO", "9) Nơi ở hiện nay:"], ["ngheTD", "10) Nghề nghiệp khi được tuyển dụng:"],
+  ["ngayTD", "11) Ngày tuyển dụng:"], ["coQuanTD", "Cơ quan tuyển dụng:"], ["chucVu", "12) Chức vụ", 1], ["congViec", "13) Công việc chính được giao:"],
+  ["ngach", "14) Ngạch", 1], ["maNgach", "Mã ngạch:"], ["bac", "Bậc lương:"], ["heSo", "Hệ số:"], ["ngayHuong", "Ngày hưởng:"],
+  ["pcChucDanh", "Phụ cấp chức danh:"], ["pcKhac", "Phụ cấp khác:"], ["phoThong", "15.1-Trình độ giáo dục phổ thông"], ["chuyenMon", "15.2-Trình độ chuyên môn cao nhất:"],
+  ["llct", "15.3-Lý luận chính trị:"], ["qlnn", "15.4-Quản lý nhà nước:"], ["nghiepVu", "15.5-Trình độ nghiệp vụ theo chuyên ngành:"], ["ngoaiNgu", "15.6-Ngoại ngữ:"], ["tinHoc", "15.7-Tin học:"],
+  ["vaoDang", "16) Ngày vào Đảng", 1], ["chinhThuc", "Ngày chính thức:"], ["ctxh", "17) Ngày tham gia tổ chức chính trị", 1], ["nhapNgu", "18) Ngày nhập ngũ:"], ["xuatNgu", "Ngày xuất ngũ:"], ["quanHam", "Quân hàm cao nhất:"],
+  ["danhHieu", "19) Danh hiệu được phong tặng cao nhất:"], ["soTruong", "20) Sở trường công tác:"], ["khen", "21) Khen thưởng:"], ["kyLuat", "22) Kỷ luật:"],
+  ["sucKhoe", "23) Tình trạng sức", 1], ["chieuCao", "Chiều cao:"], ["canNang", "Cân nặng:"], ["nhomMau", "Nhóm máu:"], ["thuongBinh", "24) Là thương binh hạng:"], ["chinhSach", "Là con gia đình chính sách:"],
+  ["cccd", "25) Số", 1], ["ngayCap", "Ngày cấp:"], ["bhxh", "26) Sổ BHXH:"], ["m27", "27) Đào tạo"], ["m28", "28) Tóm tắt quá trình công tác"],
+  ["m29", "29) Đặc điểm lịch sử bản thân"], ["m30", "30) Quan hệ gia đình"], ["m31", "31) Diễn biến"], ["m32", "32) Nhận xét, đánh giá của cơ quan, đơn vị quản lý và sử dụng cán bộ, công chức"], ["end", "Người khai"]
+].map(mkLabel);
+function mkLabel([k, s, toColon]) { return [k, s instanceof RegExp ? s : new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*").replace(/-/g, "\\s*-\\s*") + (toColon ? "[^:]{0,90}:" : ""), "i")]; }
+function labelRegions(text, labels) {
+  const V = {}; let pos = 0; const found = [];
+  for (const [k, re] of labels) { const m = re.exec(text.slice(pos)); if (m) { found.push({ k, start: pos + m.index, end: pos + m.index + m[0].length }); pos = pos + m.index + m[0].length; } }
+  found.forEach((f, i) => { V[f.k] = text.slice(f.end, i + 1 < found.length ? found[i + 1].start : text.length); });
+  return V;
+}
+function clean2C(v) {
+  return String(v || "").split("\n").map(l => l.trim()).map(l => l.replace(/^\([^)]*\)\s*:\s*(?=\S)/, "")).filter(l => l && !/^\(.*\)\s*[:.?]?$/.test(l) && !/^[.…\s|]+$/.test(l)).join("\n").replace(/^[:\s]+/, "").trim();
+}
+/* -------- Sơ yếu lý lịch theo Thông tư 06/2023/TT-BNV (xuất từ CCVC) -------- */
+const L06 = [
+  ["coQuanQL", "Cơ quan quản lý cán bộ, công chức, viên chức:"], ["donViSD", "Cơ quan, đơn vị sử dụng cán bộ, công chức, viên chức:"], ["soHieu", "Số hiệu:"], ["maDinhDanh", "Mã số định danh:"], ["_title", "SƠ YẾU LÝ LỊCH"],
+  ["hoTen", "1) Họ và tên khai sinh", 1], ["gioiTinh", "Giới tính:"], ["tenKhac", "2) Các tên gọi khác:"], ["ngaySinh", "3) Sinh ngày:"], ["noiSinh", "4) Nơi sinh:"],
+  ["queXa", "5) Quê quán (xã, phường):"], ["queHuyen", "(huyện, quận):"], ["queTinh", "(tỉnh, TP):"], ["danToc", "6) Dân tộc:"], ["tonGiao", "7) Tôn giáo:"],
+  ["cccd", "8) Số CCCD:"], ["ngayCap", "Ngày cấp:"], ["sdt", "SĐT liên hệ:"], ["bhxh", "9) Sổ BHXH:"], ["bhyt", "Số thẻ BHYT:"], ["noiO", "10) Nơi ở hiện nay:"], ["thanhPhan", "11) Thành phần gia đình xuất thân:"],
+  ["ngheTD", "12) Nghề nghiệp trước khi được tuyển dụng:"], ["ngayTD", "13) Ngày được tuyển dụng lần đầu:"], ["coQuanTD", "Cơ quan, tổ chức, đơn vị tuyển dụng:"], ["ngayVaoCQ", "14) Ngày vào cơ quan hiện công tác:"],
+  ["vaoDang", "15) Ngày vào Đảng", 1], ["chinhThuc", "Ngày chính thức:"], ["ctxh", /16\)\s*Ngày\s*tham\s*gia[\s\S]{0,160}?Hội\)\s*:/i], ["nhapNgu", "17) Ngày nhập ngũ:"], ["xuatNgu", "Ngày xuất ngũ:"], ["quanHam", "Quân hàm cao nhất:"],
+  ["chinhSach", "18) Đối tượng chính sách:"], ["phoThong", "19) Trình độ giáo dục phổ thông"], ["chuyenMon", "20) Trình độ chuyên môn cao nhất:"], ["hocHam", "21) Học hàm:"], ["danhHieu", "22) Danh hiệu nhà nước phong tặng:"],
+  ["chucVu", "23) Chức vụ hiện tại:"], ["ngayBN", "Ngày bổ nhiệm/phê chuẩn:"], ["ngayBNL", "Ngày bổ nhiệm lại/phê chuẩn nhiệm kỳ tiếp theo:"], ["quyHoach", "24) Được quy hoạch chức danh:"], ["kiemNhiem", "25) Chức vụ kiêm nhiệm:"],
+  ["cvDang", "26) Chức vụ Đảng hiện tại:"], ["cvDangKN", "27) Chức vụ Đảng kiêm nhiệm:"], ["congViec", "28) Công việc chính được giao:"], ["soTruong", "29) Sở trường công tác:"], ["lauNhat", "Công việc làm lâu nhất:"],
+  ["_m30", "30) Tiền lương"], ["ngach", "30.1) Ngạch/chức danh nghề nghiệp:"], ["maNgach", "Mã số:"], ["ngayBNNgach", "Ngày bổ nhiệm ngạch", 1], ["bac", "Bậc lương:"], ["heSo", "Hệ số:"], ["ngayHuong", "Ngày hưởng:"],
+  ["ptHuong", "Phần trăm hưởng:"], ["vuotKhung", "Phụ cấp thâm niên vượt khung:"], ["_ngayVK", "Ngày hưởng PCTNVK:"], ["pcCV", "30.2) Phụ cấp chức vụ:"], ["pcKN", "Phụ cấp kiêm nhiệm:"], ["pcKhac", "Phụ cấp khác:"], ["vtvl", "30.3) Vị trí việc làm:"],
+  ["sucKhoe", "31) Tình trạng sức", 1], ["chieuCao", "Chiều cao:"], ["canNang", "Cân nặng:"], ["nhomMau", "Nhóm máu:"], ["_m32", "32) QUÁ TRÌNH ĐÀO TẠO"],
+  ["_m34", "34) ĐẶC ĐIỂM LỊCH SỬ"], ["lichSu", /34\.1\s*-\s*Khai\s*rõ[\s\S]{0,240}?gì\?\s*:/i], ["_m342", "34.2-"], ["_m35", "35) KHEN THƯỞNG"],
+  ["_m37", "37) HOÀN CẢNH KINH TẾ"], ["tnLuong", "- Tiền lương:"], ["tnKhac", "- Các nguồn khác:"], ["_nhaO", "- Nhà ở:"], ["nhaCap", "+ Được cấp, được thuê (loại nhà):"], ["nhaMua", "+ Nhà tự mua, tự xây (loại nhà):"],
+  ["_datO", "- Đất ở:"], ["datCap", "+ Đất được cấp:"], ["datMua", "+ Đất tự mua:"], ["datSX", "- Đất sản xuất kinh doanh:"], ["nhanXet", "38) NHẬN XÉT, ĐÁNH GIÁ CỦA CƠ QUAN, TỔ CHỨC, ĐƠN VỊ SỬ DỤNG"], ["_end", "Người khai"]
+].map(mkLabel);
+function normKetQua(t) {
+  const x = norm(t); if (!x) return "";
+  if (x.includes("xuat sac")) return OPT.ketQua[0]; if (x.includes("khong hoan thanh")) return OPT.ketQua[3];
+  if (x.includes("tot")) return OPT.ketQua[1]; if (x.includes("hoan thanh")) return OPT.ketQua[2]; return t;
+}
+function parseTT06Root(root) {
+  const text = textOf(root), V = labelRegions(text, L06);
+  const g = k => clean2C(V[k]).replace(/\n/g, " ").replace(/[;,]\s*$/, "").trim();
+  const num = k => (g(k).match(/\d+(?:[.,]\d+)?/) || [""])[0].replace(",", ".");
+  const first = t => String(t || "").split(/\s+-\s+/)[0].trim();
+  const s = blankStaff("");
+  const que = [g("queXa"), g("queHuyen"), g("queTinh")].filter(Boolean).join(", ");
+  Object.assign(s.coBan, {
+    hoTen: titleCase(g("hoTen")), gioiTinh: /nữ/i.test(g("gioiTinh")) ? "Nữ" : "Nam", tenKhac: /^không$/i.test(g("tenKhac")) ? "" : g("tenKhac"), ngaySinh: toISO(g("ngaySinh")),
+    noiSinh: g("noiSinh"), queQuan: que, danToc: g("danToc"), tonGiao: g("tonGiao"), soCCCD: (g("cccd").match(/\d{9,12}/) || [g("cccd")])[0], ngayCapCCCD: toISO(g("ngayCap")),
+    dienThoai: g("sdt"), soBHXH: g("bhxh"), soBHYT: g("bhyt"), noiO: g("noiO"), thanhPhan: g("thanhPhan"), maCB: g("soHieu"), maDinhDanh: g("maDinhDanh"),
+    chinhSach: g("chinhSach"), sucKhoe: g("sucKhoe"), chieuCao: num("chieuCao"), canNang: num("canNang"), nhomMau: g("nhomMau")
+  });
+  const pcKhac = g("pcKhac");
+  Object.assign(s.luong, {
+    chucVu: g("chucVu"), ngayBoNhiem: toISO(g("ngayBN")), ngayBoNhiemLai: toISO(g("ngayBNL")), quyHoach: g("quyHoach"), chucVuKiemNhiem: g("kiemNhiem"), congViec: g("congViec"),
+    ngach: g("ngach"), maNgach: g("maNgach"), ngayBoNhiemNgach: toISO(g("ngayBNNgach")), bac: num("bac"), heSo: num("heSo"), ngayHuong: toISO(g("ngayHuong")),
+    phanTramHuong: num("ptHuong"), vuotKhung: num("vuotKhung"), pcChucVu: num("pcCV"), pcKiemNhiem: num("pcKN") === "0" ? "" : num("pcKN"),
+    pcNghe: (/ưu đãi[^:]*:\s*([\d.,]+)/i.exec(pcKhac) || [])[1]?.replace(/\.0$/, "") || "", pcKhac, viTriViecLam: g("vtvl").split(/Mã số:/)[0].trim()
+  });
+  const cm = g("chuyenMon");
+  Object.assign(s.daoTao, { phoThong: g("phoThong"), chuyenMon: cm, trinhDo: inferTrinhDo(cm), hocHam: g("hocHam") });
+  Object.assign(s.congTac, { ngheTruocTD: g("ngheTD"), ngayTuyenDung: toISO(g("ngayTD")), coQuanTD: g("coQuanTD"), ngayVaoCQ: toISO(g("ngayVaoCQ")) });
+  Object.assign(s.dangDoan, { ngayVaoDang: toISO(g("vaoDang")), ngayChinhThuc: toISO(g("chinhThuc")), ngayCTXH: toISO(g("ctxh")), ngayNhapNgu: toISO(g("nhapNgu")), ngayXuatNgu: toISO(g("xuatNgu")), quanHam: g("quanHam"),
+    chucVuDang: [g("cvDang"), g("cvDangKN")].filter(Boolean).join("; ") });
+  s.khenThuong.danhHieu = g("danhHieu");
+  Object.assign(s.banThan, { soTruong: g("soTruong"), congViecLauNhat: g("lauNhat"), lichSu: g("lichSu") });
+  const money = k => g(k).replace(/\s*đồng\s*$/i, "");
+  Object.assign(s.kinhTe, { thuNhap: money("tnLuong"), nguonThuNhap: money("tnKhac"), nhaODuocCap: g("nhaCap"), nhaOTuMua: g("nhaMua"), datODuocCap: g("datCap"), datOTuMua: g("datMua"), datSX: g("datSX") });
+  s.khac.nhanXet = clean2C(V.nhanXet);
+  // Bảng: nhận diện theo tiêu đề mục đứng ngay trước bảng
+  const qt = [], tin = [], nn = []; let llct = "", qlnn = "", cheDoCu = [], nuocNgoai = [];
+  root.querySelectorAll("table").forEach(tb => {
+    let prev = tb.previousElementSibling; while (prev && !prev.textContent.trim()) prev = prev.previousElementSibling;
+    const lab = (prev?.textContent || "").replace(/\s+/g, " ").trim();
+    const m = /^(\d{2}(?:\.\d)?)\s*[)\-]/.exec(lab); if (!m) return;
+    const key = m[1];
+    const rows = [...tb.rows].map(r => [...r.cells].map(c => textOf(c).replace(/\n/g, " ").trim()))
+      .filter(r => r.some(c => c) && !/^(tháng\/năm|từ|năm|mối quan hệ)$/i.test(r[0]));
+    const R6 = (r, n) => { const a = r.slice(0, n); while (a.length < n) a.push(""); return a; };
+    if (key === "32.1") rows.forEach(r => { const [tu, den, truong, cn, ht, vb] = R6(r, 6); qt.push({ truong, chuyenNganh: cn, tu, den, hinhThuc: ht, vanBang: vb }); });
+    else if (key === "32.2") rows.forEach(r => { const [tu, den, truong, ht, vb] = R6(r, 5); qt.push({ truong, chuyenNganh: "Lý luận chính trị", tu, den, hinhThuc: ht, vanBang: vb }); llct = first(vb) || llct; });
+    else if (key === "32.3") rows.forEach(r => { const [tu, den, truong, cc] = R6(r, 4); qt.push({ truong, chuyenNganh: "Bồi dưỡng QLNN / CDNN / nghiệp vụ", tu, den, hinhThuc: "Bồi dưỡng", vanBang: cc }); qlnn = first(cc) || qlnn; });
+    else if (key === "32.4") rows.forEach(r => { const [tu, den, truong, cc] = R6(r, 4); qt.push({ truong, chuyenNganh: "Bồi dưỡng kiến thức quốc phòng – an ninh", tu, den, hinhThuc: "Bồi dưỡng", vanBang: cc }); });
+    else if (key === "32.5") rows.forEach(r => { const [tu, den, truong, cc] = R6(r, 4); qt.push({ truong, chuyenNganh: "Tin học", tu, den, hinhThuc: "Bồi dưỡng", vanBang: cc }); tin.push(first(cc)); });
+    else if (key === "32.6") rows.forEach(r => { const [tu, den, truong, ten, cc, diem] = R6(r, 6); qt.push({ truong, chuyenNganh: ten || "Ngoại ngữ", tu, den, hinhThuc: "", vanBang: [cc, diem].filter(Boolean).join(" · ") }); nn.push([ten, first(cc)].filter(Boolean).join(" - ")); });
+    else if (key === "33") s.congTac.quaTrinh = rows.map(r => { const [tu, den, donVi, chucDanh] = R6(r, 4); return { tu, den, chucDanh, donVi }; });
+    else if (key === "34.2") cheDoCu = rows.map(r => { const [tu, den, t] = R6(r, 3); return `${tu}–${den}: ${t}`; });
+    else if (key === "34.3") nuocNgoai = rows.map(r => { const [tu, den, t] = R6(r, 3); return `${tu}–${den}: ${t}`; });
+    else if (key === "35.1") rows.forEach(r => {
+      const [nam, cm2, td, ht] = R6(r, 4);
+      if (cm2 || td) s.danhGia.ds.push({ nam, ketQua: normKetQua(cm2), thiDua: td, ghiChu: "" });
+      if (ht || td) s.khenThuong.khen.push({ nam, hinhThuc: ht, cap: "", soQD: "", noiDung: td });
+    });
+    else if (key === "35.2") s.khenThuong.kyLuat = rows.map(r => { const [tu, den, ht, hv, cq] = R6(r, 5); return { nam: [tu, den].filter(Boolean).join(" – "), hinhThuc: ht, soQD: cq, lyDo: hv }; });
+    else if (key === "36.1" || key === "36.2") s.giaDinh.ds.push(...rows.map(r => { const [qh, ten, ns, tt] = R6(r, 4); return { ben: key === "36.1" ? "Bản thân" : "Bên vợ/chồng", quanHe: qh, hoTen: ten, namSinh: ns, thongTin: tt }; }));
+    else if (key === "37.1") s.luong.dienBien = rows.map(r => { const [tu, den, ma, bac, hs, tl] = R6(r, 6); return { thang: tu, den, maNgach: ma, bac, heSo: hs, ghiChu: tl }; })
+      .sort((a, b) => (a.thang.split("/").reverse().join("")).localeCompare(b.thang.split("/").reverse().join("")));
+    else if (key === "37.2") { const pcs = rows.map(r => { const [tu, den, loai, pt, hs, ht, gt] = R6(r, 7); return [loai, pt ? pt + "%" : "", hs ? "hệ số " + hs : "", gt ? gt + "đ" : "", tu ? "từ " + tu : ""].filter(Boolean).join(" "); }); if (pcs.length) s.luong.pcKhac = pcs.join("; "); }
+  });
+  s.daoTao.quaTrinh = qt;
+  Object.assign(s.daoTao, { lyLuanCT: llct, qlnn, tinHoc: tin.filter(Boolean).join("; "), ngoaiNgu: nn.filter(Boolean).join("; ") });
+  if (cheDoCu.length) s.banThan.lichSu = [s.banThan.lichSu, "Làm việc cho chế độ cũ: " + cheDoCu.join("; ")].filter(Boolean).join("\n");
+  if (nuocNgoai.length) s.banThan.toChucNN = nuocNgoai.join("; ");
+  const kts = s.khenThuong.khen.filter(k => k.hinhThuc).map(k => `${k.nam}: ${k.hinhThuc}`); if (kts.length) s.khenThuong.tomTatKT = kts.join("; ");
+  if (s.khenThuong.kyLuat.length) s.khenThuong.tomTatKL = s.khenThuong.kyLuat.map(k => `${k.nam}: ${k.hinhThuc}`).join("; ");
+  const img = root.querySelector('img[src^="data:image"]');
+  return { data: s, donVi: g("donViSD"), photoSrc: img?.getAttribute("src") || "", mau: "TT06/2023" };
+}
+function parse2CRoot(root) {
+  const text = textOf(root);
+  const V = {}; let pos = 0; const found = [];
+  for (const [k, re] of L2C) { const m = re.exec(text.slice(pos)); if (m) { found.push({ k, start: pos + m.index, end: pos + m.index + m[0].length }); pos = pos + m.index + m[0].length; } }
+  found.forEach((f, i) => { V[f.k] = text.slice(f.end, i + 1 < found.length ? found[i + 1].start : text.length); });
+  const g = k => clean2C(V[k]).replace(/\n/g, " ").replace(/;\s*$/, "").trim();
+  const gl = k => clean2C(V[k]).split("\n").map(x => x.replace(/;\s*$/, "").trim()).filter(Boolean).join("; ");
+  const num = k => (g(k).match(/\d+(?:[.,]\d+)?/) || [""])[0].replace(",", ".");
+  const s = blankStaff("");
+  Object.assign(s.coBan, {
+    hoTen: titleCase(g("hoTen")), tenKhac: /^không$/i.test(g("tenKhac")) ? "" : g("tenKhac"), ngaySinh: toISO(g("ngaySinh")), gioiTinh: /nữ/i.test(g("gioiTinh")) ? "Nữ" : "Nam",
+    noiSinh: g("noiSinh"), queQuan: g("queQuan"), danToc: g("danToc"), tonGiao: g("tonGiao"), hoKhau: g("hoKhau"), noiO: g("noiO"),
+    sucKhoe: g("sucKhoe"), chieuCao: num("chieuCao"), canNang: num("canNang"), nhomMau: g("nhomMau"), thuongBinh: g("thuongBinh"), chinhSach: g("chinhSach"),
+    soCCCD: (g("cccd").match(/\d{9,12}/) || [g("cccd")])[0], ngayCapCCCD: toISO(g("ngayCap")), soBHXH: g("bhxh")
+  });
+  const pcKhac = g("pcKhac");
+  Object.assign(s.luong, { chucVu: g("chucVu"), congViec: g("congViec"), ngach: g("ngach"), maNgach: g("maNgach"), bac: num("bac"), heSo: num("heSo"), ngayHuong: toISO(g("ngayHuong")),
+    pcChucVu: num("pcChucDanh") === "0" ? "" : num("pcChucDanh"), pcNghe: (/ưu đãi[^:]*:\s*([\d.,]+)/i.exec(pcKhac) || [])[1]?.replace(/\.0$/, "") || "", pcKhac });
+  const cm = g("chuyenMon");
+  Object.assign(s.daoTao, { phoThong: g("phoThong"), chuyenMon: cm, trinhDo: inferTrinhDo(cm), lyLuanCT: g("llct"), qlnn: g("qlnn"), nghiepVu: g("nghiepVu"), ngoaiNgu: gl("ngoaiNgu"), tinHoc: gl("tinHoc") });
+  Object.assign(s.congTac, { ngheTruocTD: g("ngheTD"), ngayTuyenDung: toISO(g("ngayTD")), coQuanTD: g("coQuanTD") });
+  Object.assign(s.khenThuong, { danhHieu: g("danhHieu"), tomTatKT: g("khen"), tomTatKL: g("kyLuat") });
+  Object.assign(s.dangDoan, { ngayVaoDang: toISO(g("vaoDang")), ngayChinhThuc: toISO(g("chinhThuc")), hoiKhac: g("ctxh"), ngayNhapNgu: toISO(g("nhapNgu")), ngayXuatNgu: toISO(g("xuatNgu")), quanHam: g("quanHam") });
+  const m29 = V.m29 || "";
+  const p29 = m29.split(/-\s*Tham gia hoặc có quan hệ|-\s*Có thân nhân/i);
+  const v29 = t => clean2C((t || "").includes("+") ? t.split("+").slice(1).join(" ") : (t || "").replace(/^[\s\S]*?\):/, "")).replace(/\n/g, " ").trim();
+  Object.assign(s.banThan, { soTruong: g("soTruong"), lichSu: v29(p29[0]), toChucNN: v29(p29[1]), thanNhanNN: v29(p29[2]) });
+  s.khac.nhanXet = clean2C(V.m32);
+  // Bảng
+  let fam = 0;
+  root.querySelectorAll("table").forEach(tb => {
+    const rows = [...tb.rows].map(r => [...r.cells].map(c => textOf(c)));
+    if (!rows.length) return;
+    const head = norm(rows[0].join(" ")), body = rows.slice(1).filter(r => r.some(c => c));
+    const sp = t => { const [a, b] = String(t || "").split(/\s*-\s*/); return [(a || "").trim(), (b || "").trim()]; };
+    if (head.includes("ten truong")) s.daoTao.quaTrinh = body.map(r => { const [tu, den] = sp(r[2]); return { truong: r[0] || "", chuyenNganh: r[1] || "", tu, den, hinhThuc: r[3] || "", vanBang: r[4] || "" }; });
+    else if (head.includes("moi quan he")) { fam++; s.giaDinh.ds.push(...body.map(r => ({ ben: fam === 1 ? "Bản thân" : "Bên vợ/chồng", quanHe: r[0] || "", hoTen: r[1] || "", namSinh: r[2] || "", thongTin: (r[3] || "").replace(/\n/g, " ") }))); }
+    else if (head.includes("tu thang") && head.includes("chuc danh")) s.congTac.quaTrinh = body.map(r => { const [tu, den] = sp(r[0]); const t = r[1] || ""; return { tu, den, chucDanh: (/Chức danh, chức vụ:\s*(.*)/i.exec(t) || [, t.split("\n")[0]])[1].trim(), donVi: (/Đơn vị công tác:\s*(.*)/i.exec(t) || [, ""])[1].trim() }; });
+    else if (norm(rows[0][0]).startsWith("thang/nam")) {
+      const mo = rows[0].slice(1), mn = rows[1]?.slice(1) || [], hs = rows[2]?.slice(1) || [];
+      s.luong.dienBien = mo.map((m, i) => m ? { thang: m, maNgach: (mn[i] || "").split("/")[0] || "", bac: (mn[i] || "").split("/")[1] || "", heSo: hs[i] || "", ghiChu: "" } : null).filter(Boolean);
+    }
+  });
+  const img = root.querySelector('img[src^="data:image"]');
+  return { data: s, donVi: g("donViSD"), photoSrc: img?.getAttribute("src") || "" };
+}
+async function parse2CFile(file) {
+  const buf = new Uint8Array(await readAs(file, "readAsArrayBuffer"));
+  let html;
+  if (buf[0] === 0x50 && buf[1] === 0x4b) { // .docx
+    if (!window.mammoth) await new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); });
+    html = (await window.mammoth.convertToHtml({ arrayBuffer: buf.buffer })).value;
+  } else if (buf[0] === 0xd0 && buf[1] === 0xcf) {
+    throw new Error("File Word nhị phân (.doc cũ) — hãy dùng đúng file .doc xuất từ CCVC, hoặc mở bằng Word rồi Lưu thành .docx");
+  } else {
+    html = mhtmlToHtml(new TextDecoder("utf-8").decode(buf));
+  }
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  let roots = $$("div.WordSection1", doc).filter(d => /SƠ YẾU LÝ LỊCH/i.test(d.textContent));
+  if (!roots.length) roots = [doc.body];
+  return roots.map(r => /QUÁ\s*TRÌNH\s*ĐÀO\s*TẠO,\s*BỒI\s*DƯỠNG|KHEN\s*THƯỞNG,\s*KỶ\s*LUẬT|HOÀN\s*CẢNH\s*KINH\s*TẾ/i.test(r.textContent) ? parseTT06Root(r) : parse2CRoot(r)).filter(r => r.data.coBan.hoTen);
+}
+function findMatch(d) {
+  const c = (d.coBan.soCCCD || "").replace(/\D/g, "");
+  return S.staff.find(s => (c && (s.coBan?.soCCCD || "").replace(/\D/g, "") === c) || (norm(s.coBan?.hoTen) === norm(d.coBan.hoTen) && s.coBan?.ngaySinh && s.coBan.ngaySinh === d.coBan.ngaySinh));
+}
+function matchDept(name) {
+  const n = norm(name); if (!n) return "";
+  const exact = S.depts.find(d => norm(d.ten) === n); if (exact) return exact.id;
+  const strip = x => norm(x).replace(/^(khoa|phong|ban)\s+/, "");
+  const sn = strip(name.split(/[-–,]/)[0]);
+  const p = S.depts.find(d => strip(d.ten) === sn) || S.depts.find(d => n.includes(norm(d.ten))) || S.depts.find(d => sn && strip(d.ten).startsWith(sn));
+  return p?.id || "";
+}
+function mergeInto(old, inc) {
+  const out = clone(old);
+  SECTIONS.forEach(sec => { const a = out[sec.key] = out[sec.key] || {}; Object.entries(inc[sec.key] || {}).forEach(([k, v]) => {
+    if (Array.isArray(v)) { if (v.length) a[k] = keepFiles(a[k], clone(v), sec.tables.find(t => t.key === k)); }
+    else if (v !== "" && v != null) a[k] = v; }); });
+  // Không để số CMND 9 số (mẫu 2C cũ) đè lên số CCCD 12 số đã có
+  const oc = (old?.coBan?.soCCCD || "").replace(/\D/g, ""), ic = (inc?.coBan?.soCCCD || "").replace(/\D/g, "");
+  if (oc.length === 12 && ic.length === 9) { out.coBan.soCCCD = old.coBan.soCCCD; out.coBan.ngayCapCCCD = old.coBan.ngayCapCCCD || ""; out.coBan.noiCapCCCD = old.coBan.noiCapCCCD || ""; }
+  return out;
+}
+// Khi thay bảng bằng dữ liệu mới (nhập lại 2C/Excel) giữ nguyên file scan đã đính kèm
+function keepFiles(oldRows, newRows, t) {
+  const withF = (oldRows || []).filter(r => r.tep?.length); if (!withF.length || !t) return newRows;
+  const k = r => norm(t.cols.slice(0, 2).map(c => r[c[0]] || "").join("|"));
+  withF.forEach(o => { const m = newRows.find(n => k(n) === k(o)); if (m) m.tep = [...(m.tep || []), ...o.tep]; else newRows.push(o); });
+  return newRows;
+}
+
+/* ============================ XUẤT FILE ============================ */
+function qpEncode(str) {
+  const bytes = new TextEncoder().encode(str.replace(/\r?\n/g, "\r\n"));
+  let out = "", line = "";
+  const push = t => { if (line.length + t.length > 75) { out += line + "=\r\n"; line = ""; } line += t; };
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i];
+    if (b === 13 && bytes[i + 1] === 10) { out += line + "\r\n"; line = ""; i++; continue; }
+    if ((b >= 33 && b <= 126 && b !== 61) || b === 32) push(String.fromCharCode(b)); else push("=" + b.toString(16).toUpperCase().padStart(2, "0"));
+  }
+  return out + line;
+}
+function build2C(s, hasPhoto) {
+  const c = s.coBan || {}, l = s.luong || {}, d = s.daoTao || {}, ct = s.congTac || {}, kt = s.khenThuong || {}, dd = s.dangDoan || {}, bt = s.banThan || {}, k = s.khac || {};
+  const b = parseISO(c.ngaySinh);
+  const V = v => esc(v || "");
+  const P = (html, st = "") => `<p class="MsoNormal" style="${st}">${html}</p>`;
+  const dots = n => Array(n).fill(P("." .repeat(150), "color:#555")).join("");
+  const T = (head, rows, widths) => `<table class="g"><tr>${head.map((h, i) => `<td class="c" style="width:${widths[i]}%"><b>${h}</b></td>`).join("")}</tr>${(rows.length ? rows : [head.map(() => "&nbsp;")]).map(r => `<tr>${r.map(x => `<td>${x}</td>`).join("")}</tr>`).join("")}</table>`;
+  const fam = ben => (s.giaDinh?.ds || []).filter(r => (r.ben || "Bản thân") === ben).map(r => [V(r.quanHe), V(r.hoTen), V(r.namSinh), V(r.thongTin)]);
+  const dl = (l.dienBien || []).slice(-8);
+  const pcNghe = l.pcNghe ? `Phụ cấp ưu đãi theo nghề: ${V(l.pcNghe)} (%)` : "";
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Sơ yếu lý lịch</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
+<style>
+@page WordSection1{size:595.3pt 841.9pt;margin:42.5pt 42.5pt 42.5pt 70.9pt}
+div.WordSection1{page:WordSection1}
+p.MsoNormal{margin:0;margin-bottom:3pt;font-size:13pt;font-family:"Times New Roman",serif;line-height:125%}
+table.g{border-collapse:collapse;width:100%}
+table.g td{border:solid black 1pt;padding:2pt 4pt;font-size:12pt;font-family:"Times New Roman",serif;vertical-align:top}
+td.c{text-align:center}
+table.n td{padding:0 4pt;vertical-align:top;font-size:13pt;font-family:"Times New Roman",serif}
+</style></head>
+<body><div class="WordSection1">
+${P("<i><u>Mẫu 2C-BNV/2008</u></i>", "text-align:right;font-size:10pt")}
+${P(`Cơ quan, đơn vị có thẩm quyền quản lý CBCC: <b>${V(S.settings.coQuanQL)}</b>`)}
+${P(`Cơ quan, đơn vị sử dụng CBCC: <b>${V(deptName(s.khoaId))}${S.settings.tenBV ? " - " + V(S.settings.tenBV) : ""}</b>`)}
+${P("&nbsp;")}
+${P("<b>SƠ YẾU LÝ LỊCH CÁN BỘ, CÔNG CHỨC</b>", "text-align:center;font-size:14pt")}
+${P("&nbsp;")}
+<table class="n" style="width:100%;border-collapse:collapse"><tr>
+<td style="width:22%;text-align:center;vertical-align:middle">${hasPhoto ? `<img width="113" height="151" src="anh_the.jpg">` : `<div style="border:1px solid #000;width:113px;height:151px;text-align:center">Ảnh màu<br>(4 x 6 cm)</div>`}</td>
+<td style="width:78%">
+${P(`1) Họ và tên khai sinh (viết chữ in hoa): <b>${V((c.hoTen || "").toLocaleUpperCase("vi"))}</b>`)}
+${P(`2) Tên gọi khác: ${V(c.tenKhac || "Không")}`)}
+${P(`3) Sinh ngày: ${b ? `${pad(b.getDate())} tháng ${pad(b.getMonth() + 1)} năm ${b.getFullYear()}` : "…"}, Giới tính: ${V(c.gioiTinh)}`)}
+${P(`4) Nơi sinh: ${V(c.noiSinh)}`)}
+${P(`5) Quê quán: ${V(c.queQuan)}`)}
+</td></tr></table>
+${P(`6) Dân tộc: ${V(c.danToc)}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 7) Tôn giáo: ${V(c.tonGiao)}`)}
+${P(`8) Nơi đăng ký hộ khẩu thường trú: ${V(c.hoKhau)}`)}
+${P(`9) Nơi ở hiện nay: ${V(c.noiO)}`)}
+${P(`10) Nghề nghiệp khi được tuyển dụng: ${V(ct.ngheTruocTD)}`)}
+${P(`11) Ngày tuyển dụng: ${fmtDate(ct.ngayTuyenDung)}, Cơ quan tuyển dụng: ${V(ct.coQuanTD)}`)}
+${P(`12) Chức vụ (chức danh) hiện tại: ${V(l.chucVu)}`)}
+${P(`<i style="font-size:11pt">(Về chính quyền hoặc Đảng, đoàn thể, kể cả chức vụ kiêm nhiệm)</i>`)}
+${P(`13) Công việc chính được giao: ${V(l.congViec)}`)}
+${P(`14) Ngạch công chức (viên chức): ${V(l.ngach)}&nbsp;&nbsp; Mã ngạch: ${V(l.maNgach)}`)}
+${P(`Bậc lương: ${V(l.bac)}, Hệ số: ${V(l.heSo)}, Ngày hưởng: ${fmtDate(l.ngayHuong)}`)}
+${P(`Phụ cấp chức danh: ${V(l.pcChucVu || "0")}, Phụ cấp khác: ${[pcNghe, l.vuotKhung ? `Vượt khung: ${V(l.vuotKhung)}%` : "", l.pcKhac && !/ưu đãi/i.test(l.pcKhac) ? V(l.pcKhac) : ""].filter(Boolean).join("; ")}`)}
+${P(`15.1- Trình độ giáo dục phổ thông (đã tốt nghiệp lớp mấy/thuộc hệ nào): ${V(d.phoThong)}`)}
+${P(`15.2- Trình độ chuyên môn cao nhất: ${V(d.chuyenMon)}`)}
+${P(`15.3- Lý luận chính trị: ${V(d.lyLuanCT)}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 15.4- Quản lý nhà nước: ${V(d.qlnn)}`)}
+${P(`15.5- Trình độ nghiệp vụ theo chuyên ngành: ${V(d.nghiepVu)}`)}
+${P(`15.6- Ngoại ngữ: ${V(d.ngoaiNgu)}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 15.7- Tin học: ${V(d.tinHoc)}`)}
+${P(`16) Ngày vào Đảng Cộng sản Việt Nam: ${fmtDate(dd.ngayVaoDang)}, Ngày chính thức: ${fmtDate(dd.ngayChinhThuc)}`)}
+${P(`17) Ngày tham gia tổ chức chính trị - xã hội: ${V([dd.ngayVaoDoan ? "Đoàn TNCS: " + fmtDate(dd.ngayVaoDoan) : "", dd.ngayVaoCongDoan ? "Công đoàn: " + fmtDate(dd.ngayVaoCongDoan) : "", dd.hoiKhac].filter(Boolean).join("; "))}`)}
+${P(`18) Ngày nhập ngũ: ${fmtDate(dd.ngayNhapNgu)}, Ngày xuất ngũ: ${fmtDate(dd.ngayXuatNgu)}, Quân hàm cao nhất: ${V(dd.quanHam)}`)}
+${P(`19) Danh hiệu được phong tặng cao nhất: ${V(kt.danhHieu)}`)}
+${P(`20) Sở trường công tác: ${V(bt.soTruong)}`)}
+${P(`21) Khen thưởng: ${V(kt.tomTatKT)}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 22) Kỷ luật: ${V(kt.tomTatKL)}`)}
+${P(`23) Tình trạng sức khoẻ: ${V(c.sucKhoe)}, Chiều cao: ${V(c.chieuCao)} cm, Cân nặng: ${V(c.canNang)} kg, Nhóm máu: ${V(c.nhomMau)}`)}
+${P(`24) Là thương binh hạng: ${V(c.thuongBinh)}, Là con gia đình chính sách: ${V(c.chinhSach)}`)}
+${P(`25) Số CCCD/CMND: ${V(c.soCCCD)}&nbsp;&nbsp; Ngày cấp: ${fmtDate(c.ngayCapCCCD)}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 26) Sổ BHXH: ${V(c.soBHXH)}`)}
+${P("&nbsp;")}
+${P("<b>27) ĐÀO TẠO, BỒI DƯỠNG VỀ CHUYÊN MÔN, NGHIỆP VỤ, LÝ LUẬN CHÍNH TRỊ, NGOẠI NGỮ, TIN HỌC</b>", "text-align:center")}
+${T(["Tên trường", "Chuyên ngành đào tạo, bồi dưỡng", "Từ tháng, năm - đến tháng, năm", "Hình thức đào tạo", "Văn bằng, chứng chỉ"], (d.quaTrinh || []).map(r => [V(r.truong), V(r.chuyenNganh), `${V(r.tu)} - ${V(r.den)}`, V(r.hinhThuc), V(r.vanBang)]), [24, 24, 18, 14, 20])}
+${P("<i style='font-size:11pt'>Ghi chú: Hình thức đào tạo: Chính quy, tại chức, chuyên tu, bồi dưỡng…/ Văn bằng: TSKH, TS, Ths, Cử nhân, Kỹ sư …</i>")}
+${P("&nbsp;")}
+${P("<b>28) TÓM TẮT QUÁ TRÌNH CÔNG TÁC</b>", "text-align:center")}
+${T(["Từ tháng, năm đến tháng, năm", "Chức danh, chức vụ, đơn vị công tác (Đảng, chính quyền, đoàn thể, tổ chức xã hội), kể cả thời gian được đào tạo, bồi dưỡng về chuyên môn, nghiệp vụ, …"], (ct.quaTrinh || []).map(r => [`${V(r.tu)} - ${V(r.den)}`, `${V(r.chucDanh)}${r.donVi ? ", " + V(r.donVi) : ""}`]), [22, 78])}
+${P("&nbsp;")}
+${P("<b>29) ĐẶC ĐIỂM LỊCH SỬ BẢN THÂN</b>", "text-align:center")}
+${P("- Khai rõ: bị bắt, bị tù (từ ngày tháng năm nào đến ngày tháng năm nào, ở đâu?), đã khai báo cho ai, những vấn đề gì? Bản thân có làm việc trong chế độ cũ (cơ quan, đơn vị nào, địa điểm, chức danh, chức vụ, thời gian làm việc …):")}
+${bt.lichSu ? P("+ " + V(bt.lichSu)) : dots(2)}
+${P("- Tham gia hoặc có quan hệ với các tổ chức chính trị, kinh tế, xã hội nào ở nước ngoài (làm gì, tổ chức nào, đặt trụ sở ở đâu..?):")}
+${bt.toChucNN ? P("+ " + V(bt.toChucNN)) : dots(2)}
+${P("- Có thân nhân (Cha, Mẹ, Vợ, Chồng, con, anh chị em ruột) ở nước ngoài (làm gì, địa chỉ …)?")}
+${bt.thanNhanNN ? P("+ " + V(bt.thanNhanNN)) : dots(2)}
+${P("&nbsp;")}
+${P("<b>30) QUAN HỆ GIA ĐÌNH</b>", "text-align:center")}
+${P("a) Về bản thân: Cha, Mẹ, Vợ (hoặc chồng), các con, anh chị em ruột")}
+${T(["Mối quan hệ", "Họ và tên", "Năm sinh", "Quê quán, nghề nghiệp, chức danh, chức vụ, đơn vị công tác, học tập, nơi ở (trong, ngoài nước); thành viên các tổ chức chính trị - xã hội…?)"], fam("Bản thân"), [14, 22, 10, 54])}
+${P("b) Về bên vợ (hoặc chồng): Cha, Mẹ, anh chị em ruột")}
+${T(["Mối quan hệ", "Họ và tên", "Năm sinh", "Quê quán, nghề nghiệp, chức danh, chức vụ, đơn vị công tác, học tập, nơi ở (trong, ngoài nước); thành viên các tổ chức chính trị - xã hội…?)"], fam("Bên vợ/chồng"), [14, 22, 10, 54])}
+${P("&nbsp;")}
+${P("<b>31) DIỄN BIẾN QUÁ TRÌNH LƯƠNG CỦA CÁN BỘ, CÔNG CHỨC</b>", "text-align:center")}
+<table class="g"><tr><td><b>Tháng/năm</b></td>${Array.from({ length: 8 }, (_, i) => `<td class="c">${V(dl[i]?.thang) || "&nbsp;"}</td>`).join("")}</tr>
+<tr><td><b>Mã ngạch/bậc</b></td>${Array.from({ length: 8 }, (_, i) => `<td class="c">${dl[i] ? V(dl[i].maNgach) + "/" + V(dl[i].bac) : "&nbsp;"}</td>`).join("")}</tr>
+<tr><td><b>Hệ số lương</b></td>${Array.from({ length: 8 }, (_, i) => `<td class="c">${V(dl[i]?.heSo) || "&nbsp;"}</td>`).join("")}</tr></table>
+${P("&nbsp;")}
+${P("<b>32) NHẬN XÉT, ĐÁNH GIÁ CỦA CƠ QUAN, ĐƠN VỊ QUẢN LÝ VÀ SỬ DỤNG CÁN BỘ, CÔNG CHỨC</b>", "text-align:center")}
+${k.nhanXet ? P(V(k.nhanXet).replace(/\n/g, "<br>")) : dots(3)}
+${P("&nbsp;")}
+<table class="n" style="width:100%;border-collapse:collapse"><tr>
+<td style="width:45%;text-align:center">${P("<b>Người khai</b>", "text-align:center")}${P("Tôi xin cam đoan những lời khai trên đây là đúng sự thật", "text-align:center")}${P("<i>(Ký tên, ghi rõ họ tên)</i>", "text-align:center")}</td>
+<td style="width:55%;text-align:center">${P("<i>……, Ngày……tháng……năm 20……</i>", "text-align:center")}${P("<b>Thủ trưởng cơ quan, đơn vị quản lý và sử dụng CBCC</b>", "text-align:center")}${P("<i>(Ký tên, đóng dấu)</i>", "text-align:center")}</td>
+</tr></table>
+</div></body></html>`;
+}
+function make2CDoc(s, photo) {
+  const html = build2C(s, !!photo);
+  const bd = "----=_NextPart_QLNL_2C";
+  let mht = `MIME-Version: 1.0\r\nContent-Type: multipart/related; boundary="${bd}"; type="text/html"\r\n\r\n--${bd}\r\nContent-Type: text/html; charset="utf-8"\r\nContent-Transfer-Encoding: quoted-printable\r\nContent-Location: file:///C:/2C/2C.htm\r\n\r\n${qpEncode(html)}\r\n`;
+  if (photo) { const b64 = photo.split(",")[1]; mht += `\r\n--${bd}\r\nContent-Type: image/jpeg\r\nContent-Transfer-Encoding: base64\r\nContent-Location: file:///C:/2C/anh_the.jpg\r\n\r\n${b64.match(/.{1,76}/g).join("\r\n")}\r\n`; }
+  mht += `\r\n--${bd}--\r\n`;
+  return new Blob([mht], { type: "application/msword" });
+}
+function exportXlsx() {
+  if (!window.XLSX) return toast("Chưa tải được thư viện Excel (cần mạng)", 1);
+  const list = filteredStaff();
+  const val = (s, f) => { const v = getP(s, f.path) ?? ""; return f.type === "date" ? fmtDate(v) : f.type === "dept" ? deptName(v) : v; };
+  const head = ["ID hệ thống", ...FLAT.map(f => f.label), "Ngày nâng lương dự kiến", "Ngày đủ tuổi nghỉ hưu"];
+  const main = [head, ...list.map(s => [s.id, ...FLAT.map(f => val(s, f)), fmtD(nextRaise(s)), fmtD(retireDate(s))])];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(main); ws["!cols"] = head.map(h => ({ wch: Math.min(32, Math.max(10, h.length)) })); ws["!freeze"] = { xSplit: 2, ySplit: 1 };
+  XLSX.utils.book_append_sheet(wb, ws, "Hồ sơ");
+  SECTIONS.forEach(sec => sec.tables.forEach(t => {
+    const rows = [["ID hệ thống", "Họ và tên", "Khoa / phòng", ...t.cols.map(c => c[1])]];
+    list.forEach(s => (s[sec.key]?.[t.key] || []).forEach(r => rows.push([s.id, nameOf(s), deptName(s.khoaId), ...t.cols.map(c => c[2] === "date" ? fmtDate(r[c[0]]) : c[2] === "files" ? (r.tep || []).map(f => f.name).join("; ") : r[c[0]] ?? "")])));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), t.title.replace(/\s*\(.*\)/, "").slice(0, 31));
+  }));
+  XLSX.writeFile(wb, `NhanLuc_${isoOf(new Date())}.xlsx`);
+  log("Xuất Excel", { name: `${list.length} hồ sơ` });
+}
+
+/* ============================ FILE SCAN (Google Drive) ============================ */
+const DEMO_FILES = new Map();
+const filesOn = () => B.mode === "demo" || !!DRIVE_UPLOAD_URL;
+const clipIc = `<svg viewBox="0 0 24 24"><path d="M21 11.5 12.6 20a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/></svg>`;
+function filesHTML(path, row, list, editable) {
+  list = list || [];
+  const chips = list.map((f, j) => `<span class="fchip ${editable ? "" : "ro"}" title="${esc(f.name)}${f.size ? " · " + (f.size / 1048576).toFixed(1) + " MB" : ""}"><a onclick="App.viewFile('${path}',${row},${j})" onmouseenter="App.preFile('${path}',${row},${j})" ontouchstart="App.preFile('${path}',${row},${j})">${esc(f.name)}</a>${editable ? `<button class="x" title="Gỡ file" onclick="App.rmFile('${path}',${row},${j})">×</button>` : ""}</span>`).join("");
+  const up = editable && filesOn() ? `<button class="btn up" onclick="App.upFile('${path}',${row})" title="Tải ảnh hoặc PDF lên Google Drive">${clipIc}Tải lên</button>` : "";
+  if (!chips && !up) return editable ? `<span class="muted" style="font-size:12px">Chưa cấu hình Drive</span>` : "";
+  return `<div class="files">${chips}${up}</div>`;
+}
+function fileList(path, row, create) {
+  if (row >= 0) { const r = getP(S.draft, path)?.[row]; if (!r) return []; if (!r.tep && create) r.tep = []; return r.tep || []; }
+  let l = getP(S.draft, path); if (!Array.isArray(l)) { l = []; if (create) setP(S.draft, path, l); } return l;
+}
+async function driveCall(body) {
+  const r = await fetch(DRIVE_UPLOAD_URL, { method: "POST", body: JSON.stringify({ ...body, idToken: await B.idToken() }) });
+  let j; try { j = await r.json(); } catch (e) { throw new Error("Máy chủ Drive trả về dữ liệu không hợp lệ (kiểm tra lại DRIVE_UPLOAD_URL)"); }
+  if (!j.ok) throw new Error(j.error || "Lỗi Drive"); return j;
+}
+const b64ToBlob = (b64, mime) => new Blob([Uint8Array.from(atob(b64), c => c.charCodeAt(0))], { type: mime });
+async function prepFile(f) {
+  if (/^image\/(jpeg|png|webp|bmp)$/.test(f.type) && f.size > 600 * 1024) {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(f); });
+    const k = Math.min(1, 2000 / Math.max(img.width, img.height)); const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.85));
+    return { name: f.name.replace(/\.\w+$/, "") + ".jpg", mime: "image/jpeg", blob };
+  }
+  return { name: f.name, mime: f.type || "application/octet-stream", blob: f };
+}
+async function uploadOne(f, path) {
+  const p = await prepFile(f);
+  if (p.blob.size > MAX_FILE_MB * 1048576) throw new Error(`${f.name}: quá ${MAX_FILE_MB} MB`);
+  const data = (await readAs(p.blob, "readAsDataURL")).split(",")[1];
+  const meta = { name: p.name, mime: p.mime, size: p.blob.size, at: nowISO(), by: S.me.hoTen };
+  if (B.mode === "demo") { const id = "demo_" + Math.random().toString(36).slice(2); DEMO_FILES.set(id, { data, mime: p.mime }); return { id, ...meta }; }
+  const sec = SECTIONS.find(x => x.key === path.split(".")[0]);
+  const j = await driveCall({ action: "upload", staffId: S.cur, staffName: S.draft.coBan?.hoTen || "", section: sec ? `${sec.no}. ${sec.title}` : path, name: p.name, mime: p.mime, data });
+  cacheBlob(j.file.id, p.blob);
+  return { id: j.file.id, ...meta };
+}
+// Bộ nhớ đệm file đã mở trong phiên: mở lại tức thì; rê chuột lên tên file là bắt đầu tải trước
+const FILE_CACHE = new Map();
+function cacheBlob(id, blob) { FILE_CACHE.set(id, Promise.resolve(blob)); while (FILE_CACHE.size > 40) FILE_CACHE.delete(FILE_CACHE.keys().next().value); }
+function getFileBlob(staffId, f) {
+  if (FILE_CACHE.has(f.id)) return FILE_CACHE.get(f.id);
+  const pr = (async () => {
+    if (B.mode === "demo") { const d = DEMO_FILES.get(f.id); if (!d) throw new Error("File demo chỉ còn trong phiên hiện tại"); return b64ToBlob(d.data, d.mime); }
+    const r = await driveCall({ action: "get", staffId, fileId: f.id }); return b64ToBlob(r.data, r.mime || f.mime);
+  })();
+  FILE_CACHE.set(f.id, pr); pr.catch(() => FILE_CACHE.delete(f.id));
+  while (FILE_CACHE.size > 40) FILE_CACHE.delete(FILE_CACHE.keys().next().value);
+  return pr;
+}
+function filesDiscard() { const ids = S.fUp.splice(0); S.fTrash = []; ids.forEach(id => driveTrash(S.cur, id)); }
+function filesCommit(staffId) { const ids = S.fTrash.splice(0); S.fUp = []; ids.forEach(id => driveTrash(staffId, id)); }
+function driveTrash(staffId, id) {
+  if (B.mode === "demo") { DEMO_FILES.delete(id); return; }
+  if (!DRIVE_UPLOAD_URL || !staffId) return;
+  driveCall({ action: "trash", staffId, fileId: id }).catch(e => console.warn("trash", e));
+}
+
+/* -------- Chuyển khoa: ghi vào quá trình công tác -------- */
+function khoaMoveHistory(st, newKhoa, title) {
+  const now = new Date(), ym = `${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+  const rows = clone(st.congTac?.quaTrinh || []);
+  rows.forEach(r => { if (!r.den) r.den = ym; });
+  rows.push({ tu: ym, den: "", chucDanh: title || st.luong?.chucVu || "", donVi: `${deptName(newKhoa)}${S.settings.tenBV ? " - " + S.settings.tenBV : ""}` });
+  return rows;
+}
+
+/* ============================ MODAL ============================ */
+function modal(html, lg) { const m = $("#modal"); m.innerHTML = `<div class="box ${lg ? "lg" : ""}">${html}</div>`; m.classList.remove("hidden"); }
+function closeModal() { $("#modal").classList.add("hidden"); $("#modal").innerHTML = ""; }
+function openChangePw(force) {
+  modal(`<h3>${force ? "Đổi mật khẩu lần đầu" : "Đổi mật khẩu"}</h3>${force ? `<div class="note">Vì an toàn, bạn cần đổi mật khẩu do người quản lý cấp.</div>` : ""}
+  <div class="form"><label class="f wide">Mật khẩu hiện tại<input type="password" id="pw_o"></label><label class="f">Mật khẩu mới (≥ 6 ký tự)<input type="password" id="pw_n"></label><label class="f">Nhập lại<input type="password" id="pw_c"></label></div>
+  <div class="foot">${force ? "" : `<button class="btn" onclick="App.close()">Hủy</button>`}<button class="btn pri" onclick="App.doChangePw(${force ? 1 : 0})">Đổi mật khẩu</button></div>`);
+}
+
+/* ============================ HÀNH ĐỘNG ============================ */
+const App = {
+  async login(e) {
+    e.preventDefault(); const btn = $("#lg_b"); btn.disabled = true;
+    try { await B.signIn(loginToEmail($("#lg_u").value), $("#lg_p").value); } catch (err) { toast(errMsg(err), 1); btn.disabled = false; }
+  },
+  quick(u) { $("#lg_u").value = u; $("#lg_p").value = "123456"; $("#lg_b").click(); },
+  async forgot(e) {
+    e.preventDefault(); const u = $("#lg_u").value.trim();
+    if (!u.includes("@")) return toast("Liên hệ Trưởng khoa hoặc Phòng TCHC để được đặt lại mật khẩu.");
+    try { await B.resetEmail(u); toast("Đã gửi thư đặt lại mật khẩu tới " + u); } catch (err) { toast(errMsg(err), 1); }
+  },
+  async bootstrap(e) {
+    e.preventDefault();
+    const hoTen = $("#bs_n").value.trim(), login = $("#bs_u").value.trim(), pw = $("#bs_p").value, bv = $("#bs_bv").value.trim();
+    S.booting = true;
+    try {
+      const u = await B.signUpSelf(loginToEmail(login), pw);
+      const ops = [];
+      let khoaId = "";
+      if ($("#bs_d").checked) DEFAULT_DEPTS.forEach((t, i) => { const id = B.newId("departments"); if (t.includes("Tổ chức")) khoaId = id; ops.push({ op: "set", col: "departments", id, data: { ten: t, ma: "", thuTu: i + 1 } }); });
+      await B.batch([{ op: "set", col: "users", id: u.uid, data: { hoTen, login, email: loginToEmail(login), role: "admin", khoaId, staffId: "", perms: {}, active: true, mustChangePw: false, createdAt: nowISO(), createdBy: "Khởi tạo" } }, { op: "set", col: "settings", id: "bootstrap", data: { at: nowISO(), uid: u.uid } }]);
+      await B.batch([...ops, { op: "set", col: "settings", id: "app", data: { ...DEFAULT_SETTINGS, tenBV: bv || DEFAULT_SETTINGS.tenBV } }]);
+      S.booting = false; S.needBoot = false; toast("Đã khởi tạo hệ thống");
+      await handleAuth(u);
+    } catch (err) { S.booting = false; toast(errMsg(err), 1); }
+  },
+  async logout() { await B.signOut(); S.me = null; S.logs = null; S.imp = null; S.xl = null; },
+  resetDemo(e) { e.preventDefault(); if (confirm("Xóa toàn bộ dữ liệu demo trên trình duyệt này và tạo lại dữ liệu mẫu?")) B.reset(); },
+  go(v) {
+    if (S.edit && !confirm("Bỏ các thay đổi chưa lưu?")) return;
+    if (S.edit) filesDiscard();
+    S.edit = false;
+    if (v === "mine") { if (S.me.staffId) return openProfile(S.me.staffId, true); if (canMakeMine()) return App.createMine(); S.view = "mine"; S.cur = null; S.draft = null; return render(); }
+    if (v === "logs") S.logs = null;
+    S.view = v; render(); window.scrollTo(0, 0);
+  },
+  filt(k, v, isQ) { S.f[k] = v; if (isQ) S._focusQ = true; render(); },
+  open(id) { if (S.edit && !confirm("Bỏ các thay đổi chưa lưu?")) return; if (S.edit) filesDiscard(); S.edit = false; openProfile(id, id === S.me.staffId && !canList()); window.scrollTo(0, 0); },
+  createMine() {
+    S.cur = null; S.selfNew = true; S.draft = blankStaff(S.me.khoaId); S.draft.uid = S.user.uid; S.draft.coBan.hoTen = S.me.hoTen || "";
+    S.edit = true; S.tab = 0; S.photo = null; S.photoDirty = false; S.view = "mine"; render();
+  },
+  newStaffFor(uid) {
+    const u = S.users.find(x => x.id === uid); if (!u) return;
+    if (uid === S.user.uid) return App.createMine();
+    S.selfNew = false; S.linkUid = uid; S.cur = null; S.draft = blankStaff(u.khoaId); S.draft.uid = uid; S.draft.coBan.hoTen = u.hoTen || "";
+    S.edit = true; S.tab = 0; S.photo = null; S.photoDirty = false; S.view = "profile"; render();
+  },
+  newStaff() { S.linkUid = ""; S.selfNew = false; S.cur = null; S.draft = blankStaff(isAdmin() ? (S.f.khoa || "") : S.me.khoaId); S.edit = true; S.tab = 0; S.photo = null; S.photoDirty = false; S.view = "profile"; render(); },
+  tab(i) { syncForm(); S.tab = i; render(); },
+  startEdit() { S.edit = true; render(); },
+  cancelEdit() {
+    if (!S.cur) { S.edit = false; S.linkUid = ""; if (S.selfNew) { S.selfNew = false; S.draft = null; S.view = "mine"; } else S.view = "staff"; return render(); }
+    S.edit = false; const s = S.staff.find(x => x.id === S.cur); if (s) S.draft = clone(s);
+    SECTIONS.forEach(sec => { S.draft[sec.key] = S.draft[sec.key] || {}; sec.tables.forEach(t => S.draft[sec.key][t.key] = S.draft[sec.key][t.key] || []); });
+    S.photoDirty = false; filesDiscard(); render();
+  },
+  addRow(sk, tk) { syncForm(); S.draft[sk][tk].push({}); render(); },
+  delRow(sk, tk, i) { syncForm(); const [r] = S.draft[sk][tk].splice(i, 1); (r?.tep || []).forEach(f => S.fTrash.push(f.id)); render(); },
+  async pickPhoto() {
+    const [f] = await pickFile("image/*"); if (!f) return;
+    syncForm(); S.photo = await compressImage(await readAs(f, "readAsDataURL")); S.photoDirty = true;
+    const el = $("#ph_box"); if (el) el.innerHTML = `<img src="${S.photo}" alt="">`;
+  },
+  async upFile(path, row) {
+    if (!S.cur) return toast("Bấm “Lưu hồ sơ” một lần trước khi đính kèm file", 1);
+    const fs = await pickFile("application/pdf,image/*", true); if (!fs.length) return;
+    syncForm();
+    toast(`Đang tải lên ${fs.length} file…`); let ok = 0;
+    for (const f of fs) {
+      try { const meta = await uploadOne(f, path); fileList(path, row, true).push(meta); S.fUp.push(meta.id); ok++; syncForm(); render(); }
+      catch (e) { toast(`${f.name}: ${errMsg(e)}`, 1); }
+    }
+    if (ok) toast(`Đã tải lên ${ok} file. Bấm “Lưu hồ sơ” để ghi lại.`);
+  },
+  rmFile(path, row, j) {
+    syncForm(); const l = fileList(path, row); const [f] = l.splice(j, 1);
+    if (f) { const k = S.fUp.indexOf(f.id); if (k >= 0) { S.fUp.splice(k, 1); driveTrash(S.cur, f.id); } else S.fTrash.push(f.id); }
+    render();
+  },
+  preFile(path, row, j) {
+    const f = fileList(path, row)[j]; if (f && S.cur && filesOn()) getFileBlob(S.cur, f).catch(() => {});
+  },
+  async viewFile(path, row, j) {
+    if (S.edit) syncForm();
+    const f = fileList(path, row)[j]; if (!f) return;
+    const pr = getFileBlob(S.cur, f);
+    const w = window.open("", "_blank");
+    if (w) w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(f.name)}</title><style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:90vh;color:#334;margin:0}.s{width:34px;height:34px;border:4px solid #d5e6e8;border-top-color:#0d6670;border-radius:50%;animation:r .8s linear infinite;margin:0 auto 14px}@keyframes r{to{transform:rotate(360deg)}}</style><div style="text-align:center"><div class="s"></div>Đang mở <b>${esc(f.name)}</b>${f.size ? ` (${(f.size / 1048576).toFixed(1)} MB)` : ""}…</div>`);
+    try {
+      const blob = await pr;
+      const url = URL.createObjectURL(blob);
+      if (w) w.location.href = url; else download(blob, f.name);
+    } catch (e) { if (w) w.close(); toast(errMsg(e), 1); }
+  },
+  async save() {
+    syncForm();
+    const d = clone(S.draft), isNew = !S.cur;
+    if (!d.coBan.hoTen) { S.tab = 0; render(); return toast("Chưa nhập họ và tên", 1); }
+    if (!d.khoaId) { S.tab = 1; render(); return toast("Chưa chọn khoa/phòng", 1); }
+    d.coBan.hoTen = titleCase(d.coBan.hoTen);
+    d.updatedAt = nowISO(); d.updatedBy = S.me.hoTen;
+    const id = S.cur || B.newId("staff"); delete d.id;
+    try {
+      if (isNew && S.selfNew) {
+        d.createdAt = d.updatedAt; d.uid = S.user.uid; d.khoaId = S.me.khoaId;
+        await B.batch([{ op: "set", col: "staff", id, data: d }, { op: "update", col: "users", id: S.user.uid, data: { staffId: id } }]);
+        S.me.staffId = id; S.selfNew = false; const mu = S.users.find(x => x.id === S.user.uid); if (mu) mu.staffId = id;
+      }
+      else if (isNew && S.linkUid) {
+        d.createdAt = d.updatedAt; d.uid = S.linkUid;
+        await B.batch([{ op: "set", col: "staff", id, data: d }, { op: "update", col: "users", id: S.linkUid, data: { staffId: id } }]);
+        const u = S.users.find(x => x.id === S.linkUid); if (u) u.staffId = id; S.linkUid = "";
+      }
+      else if (isNew) { d.createdAt = d.updatedAt; await B.set("staff", id, d); }
+      else if (canManage(S.staff.find(x => x.id === id)?.khoaId)) {
+        const old = S.staff.find(x => x.id === id), ops = [];
+        if (old.khoaId && d.khoaId !== old.khoaId) {
+          d.congTac = d.congTac || {}; d.congTac.quaTrinh = khoaMoveHistory(d, d.khoaId);
+          const u = d.uid && S.users.find(x => x.id === d.uid);
+          if (u && u.khoaId !== d.khoaId) { ops.push({ op: "update", col: "users", id: u.id, data: { khoaId: d.khoaId } }); u.khoaId = d.khoaId; }
+          log("Chuyển khoa", { id, name: `${d.coBan.hoTen}: ${deptName(old.khoaId)} → ${deptName(d.khoaId)}`, khoaId: d.khoaId });
+          toast(`Đã chuyển sang ${deptName(d.khoaId)}${u ? " (tài khoản chuyển theo)" : ""}, ghi vào quá trình công tác`);
+        }
+        await B.batch([{ op: "set", col: "staff", id, data: d }, ...ops]);
+      }
+      else { const part = {}; SELF_KEYS.forEach(k => part[k] = d[k]); await B.update("staff", id, part); Object.assign(d, clone(S.staff.find(x => x.id === id)), part); }
+      if (S.photoDirty && S.photo) await B.set("photos", id, { data: S.photo, at: nowISO() });
+      const saved = { id, ...d };
+      const i = S.staff.findIndex(x => x.id === id); if (i >= 0) S.staff[i] = saved; else S.staff.push(saved);
+      S.cur = id; S.draft = clone(saved); S.edit = false; S.photoDirty = false;
+      toast("Đã lưu hồ sơ"); render(); filesCommit(id);
+      log(isNew ? "Thêm hồ sơ" : "Cập nhật hồ sơ", { id, name: d.coBan.hoTen, khoaId: d.khoaId });
+    } catch (e) { console.error(e); toast("Không lưu được: " + errMsg(e), 1); }
+  },
+  async delStaff() {
+    const s = S.draft; if (!confirm(`Xóa vĩnh viễn hồ sơ ${nameOf(s)}?\nNên đổi trạng thái sang "Thôi việc"/"Chuyển công tác" thay vì xóa.`)) return;
+    try {
+      await B.batch([{ op: "del", col: "staff", id: S.cur }, { op: "del", col: "photos", id: S.cur }]);
+      S.staff = S.staff.filter(x => x.id !== S.cur); log("Xóa hồ sơ", { name: s.coBan?.hoTen, khoaId: s.khoaId }); S.view = "staff"; S.cur = null; render(); toast("Đã xóa");
+    } catch (e) { toast(errMsg(e), 1); }
+  },
+  export2C() {
+    const s = S.staff.find(x => x.id === S.cur) || S.draft;
+    download(make2CDoc(s, S.photo), `2C_${noAccent(nameOf(s)).replace(/\s+/g, "_")}.doc`);
+    log("Xuất Mẫu 2C", { id: S.cur, name: s.coBan?.hoTen, khoaId: s.khoaId });
+  },
+  exportXlsx,
+  // ----- nhập 2C
+  impTab(t) { S.impTab = t; render(); },
+  async pick2C() { const fs = await pickFile(".doc,.docx,.htm,.html,.mht,.mhtml", true); if (fs.length) App.load2C(fs); },
+  drop2C(e) { e.preventDefault(); const fs = [...e.dataTransfer.files]; if (fs.length) App.load2C(fs); },
+  async load2C(files) {
+    const out = [];
+    for (const f of files) {
+      try {
+        const rs = await parse2CFile(f);
+        if (!rs.length) { toast(`${f.name}: không nhận ra Mẫu 2C`, 1); continue; }
+        for (const r of rs) {
+          const match = findMatch(r.data);
+          let photo = ""; if (r.photoSrc) { try { photo = await compressImage(r.photoSrc); } catch (e) {} }
+          out.push({ file: f.name, mau: r.mau || "", data: r.data, donVi: r.donVi, photo, match: match?.id || "", khoaId: isAdmin() ? (match?.khoaId || matchDept(r.donVi)) : S.me.khoaId, inc: true });
+        }
+      } catch (e) { toast(`${f.name}: ${errMsg(e)}`, 1); }
+    }
+    if (!canImportAll()) {
+      const x = out[0]; if (!x) return render();
+      const me = S.staff.find(s => s.id === S.me.staffId);
+      const myName = norm(me?.coBan?.hoTen || S.me.hoTen), fName = norm(x.data.coBan.hoTen);
+      const cccdOk = me?.coBan?.soCCCD && (me.coBan.soCCCD.replace(/\D/g, "") === (x.data.coBan.soCCCD || "").replace(/\D/g, ""));
+      if (myName !== fName && !cccdOk) { x.block = true; x.warn = `File 2C này là của “${titleCase(x.data.coBan.hoTen)}”, không trùng tên với hồ sơ của bạn (“${titleCase(me?.coBan?.hoTen || S.me.hoTen)}”). Chỉ nhập được Sơ yếu lý lịch của chính mình.`; }
+      else if (me?.coBan?.ngaySinh && x.data.coBan.ngaySinh && me.coBan.ngaySinh !== x.data.coBan.ngaySinh) x.warn = "Ngày sinh trong file khác với ngày sinh đang khai — sẽ cập nhật theo file 2C.";
+      S.imp = [x]; return render();
+    }
+    S.imp = [...(S.imp || []), ...out]; render();
+  },
+  async impRunSelf() {
+    const x = S.imp?.[0]; if (!x || x.block) return;
+    const btn = $("#imp_self"); btn.disabled = true; btn.textContent = "Đang lưu…";
+    try {
+      const now = nowISO(); const me = S.staff.find(s => s.id === S.me.staffId);
+      if (me) {
+        const d = mergeInto(me, x.data); const part = {};
+        SELF_KEYS.forEach(k => { if (k !== "doiTuong") part[k] = d[k]; });
+        part.updatedAt = now; part.updatedBy = S.me.hoTen + " (nhập 2C)";
+        await B.update("staff", me.id, part);
+        if (x.photo) await B.set("photos", me.id, { data: x.photo, at: now });
+        Object.assign(me, clone(part));
+        log("Tự nhập 2C", { id: me.id, name: d.coBan.hoTen, khoaId: me.khoaId });
+      } else {
+        const id = B.newId("staff"); const d = clone(x.data);
+        Object.assign(d, { khoaId: S.me.khoaId, uid: S.user.uid, createdAt: now, updatedAt: now, updatedBy: S.me.hoTen + " (nhập 2C)" });
+        const ops = [{ op: "set", col: "staff", id, data: d }, { op: "update", col: "users", id: S.user.uid, data: { staffId: id } }];
+        await B.batch(ops);
+        if (x.photo) await B.set("photos", id, { data: x.photo, at: now });
+        S.staff.push({ id, ...d }); S.me.staffId = id;
+        log("Tự nhập 2C (tạo hồ sơ)", { id, name: d.coBan.hoTen, khoaId: S.me.khoaId });
+      }
+      S.imp = null; toast("Đã điền hồ sơ từ file 2C. Kiểm tra và bổ sung phần còn thiếu.");
+      await openProfile(S.me.staffId, true); S.edit = false; render();
+    } catch (e) { toast("Không lưu được: " + errMsg(e), 1); btn.disabled = false; btn.textContent = "Điền vào hồ sơ của tôi"; }
+  },
+  impInc(i, v) { S.imp[i].inc = v; render(); },
+  impAll(v) { S.imp.forEach(x => x.inc = v); render(); },
+  impKhoa(i, v) { S.imp[i].khoaId = v; render(); },
+  impClear() { S.imp = null; render(); },
+  async impRun() {
+    const L = S.imp.filter(x => x.inc && x.khoaId); if (!L.length) return;
+    if (!isAdmin() && L.some(x => x.match && S.staff.find(s => s.id === x.match)?.khoaId !== S.me.khoaId)) return toast("Có hồ sơ trùng thuộc khoa khác — chỉ Phòng TCHC được cập nhật", 1);
+    const pg = $("#imp_prog"); pg.style.display = "block";
+    let ok = 0;
+    for (let i = 0; i < L.length; i++) {
+      const x = L[i];
+      try {
+        const now = nowISO();
+        let d, id;
+        if (x.match) { id = x.match; d = mergeInto(S.staff.find(s => s.id === id), x.data); d.khoaId = x.khoaId; delete d.id; }
+        else { id = B.newId("staff"); d = clone(x.data); d.khoaId = x.khoaId; d.createdAt = now; }
+        d.updatedAt = now; d.updatedBy = S.me.hoTen + " (nhập 2C)";
+        const ops = [{ op: "set", col: "staff", id, data: d }]; if (x.photo) ops.push({ op: "set", col: "photos", id, data: { data: x.photo, at: now } });
+        await B.batch(ops);
+        const j = S.staff.findIndex(s => s.id === id); if (j >= 0) S.staff[j] = { id, ...d }; else S.staff.push({ id, ...d });
+        ok++; log(x.match ? "Cập nhật từ 2C" : "Nhập mới từ 2C", { id, name: d.coBan.hoTen, khoaId: d.khoaId });
+      } catch (e) { toast(`${x.data.coBan.hoTen}: ${errMsg(e)}`, 1); }
+      pg.firstElementChild.style.width = ((i + 1) / L.length * 100) + "%";
+    }
+    toast(`Đã nhập ${ok}/${L.length} hồ sơ`); S.imp = null; render();
+  },
+  // ----- nhập Excel
+  async pickXlsx() {
+    if (!window.XLSX) return toast("Chưa tải được thư viện Excel (cần mạng)", 1);
+    const [f] = await pickFile(".xlsx,.xls,.csv"); if (!f) return;
+    const wb = XLSX.read(await readAs(f, "readAsArrayBuffer"), { type: "array", cellDates: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
+    const hi = aoa.findIndex(r => r.filter(c => String(c).trim()).length >= 3); if (hi < 0) return toast("Không tìm thấy dòng tiêu đề", 1);
+    const head = aoa[hi].map(c => String(c).trim());
+    const syn = { "ho va ten": "coBan.hoTen", "ho ten": "coBan.hoTen", "ngay sinh": "coBan.ngaySinh", "gioi tinh": "coBan.gioiTinh", "so cmnd": "coBan.soCCCD", "cccd": "coBan.soCCCD", "so cccd": "coBan.soCCCD", "so cmnd/cccd": "coBan.soCCCD", "don vi": "khoaId", "khoa": "khoaId", "khoa/phong": "khoaId", "phong ban": "khoaId", "chuc vu": "luong.chucVu", "ma ngach": "luong.maNgach", "ngach": "luong.ngach", "bac": "luong.bac", "bac luong": "luong.bac", "he so": "luong.heSo", "he so luong": "luong.heSo", "ngay huong": "luong.ngayHuong", "so bhxh": "coBan.soBHXH", "so so bhxh": "coBan.soBHXH", "dien thoai": "coBan.dienThoai", "so dien thoai": "coBan.dienThoai", "email": "coBan.email", "dan toc": "coBan.danToc", "ton giao": "coBan.tonGiao", "que quan": "coBan.queQuan", "trinh do chuyen mon": "daoTao.chuyenMon", "ngay tuyen dung": "congTac.ngayTuyenDung", "id he thong": "_id" };
+    const map = head.map(h => { const n = norm(h).replace(/\s*\*$/, ""); const f = FLAT.find(f => norm(f.label) === n); return f ? f.path : (syn[n] || ""); });
+    S.xl = { file: f.name, head, rows: aoa.slice(hi + 1).filter(r => r.some(c => String(c).trim())), map, khoaId: isAdmin() ? "" : S.me.khoaId };
+    render();
+  },
+  xlMap(i, v) { S.xl.map[i] = v; },
+  xlClear() { S.xl = null; render(); },
+  async xlRun() {
+    const X = S.xl, pg = $("#xl_prog"); pg.style.display = "block";
+    if (!X.map.includes("coBan.hoTen") && !X.map.includes("_id")) return toast("Cần ghép ít nhất cột Họ và tên", 1);
+    let ok = 0, skip = 0;
+    for (let ri = 0; ri < X.rows.length; ri++) {
+      const r = X.rows[ri]; const inc = blankStaff(""); let rid = "";
+      Object.keys(inc).forEach(k => { if (typeof inc[k] === "object" && !Array.isArray(inc[k])) SECTIONS.find(s => s.key === k)?.tables.forEach(t => delete inc[k][t.key]); });
+      ["doiTuong", "trangThai", "khoaId"].forEach(k => inc[k] = ""); Object.keys(inc.coBan).forEach(k => inc.coBan[k] = ""); inc.luong.chuKy = "";
+      X.map.forEach((p, i) => {
+        if (!p) return; let v = r[i]; if (v === "" || v == null) return;
+        if (p === "_id") { rid = String(v).trim(); return; }
+        const f = FLAT.find(f => f.path === p);
+        if (f.type === "date") v = toISO(v); else if (f.type === "dept") v = matchDept(String(v)); else if (v instanceof Date) v = fmtD(v); else v = String(v).trim();
+        if (f.key === "gioiTinh") v = /n[uữ]/i.test(noAccent(v)) && !/nam/i.test(noAccent(v)) ? "Nữ" : "Nam";
+        if (f.key === "hoTen") v = titleCase(v);
+        setP(inc, p, v);
+      });
+      const ex = rid ? S.staff.find(s => s.id === rid) : (inc.coBan.hoTen ? findMatch(inc) : null);
+      const khoa = inc.khoaId || ex?.khoaId || X.khoaId;
+      if (!khoa || !(isAdmin() || khoa === S.me.khoaId) || (!ex && !inc.coBan.hoTen)) { skip++; continue; }
+      try {
+        const now = nowISO(); let d, id;
+        if (ex) { id = ex.id; d = mergeInto(ex, inc); ["doiTuong", "trangThai"].forEach(k => { if (inc[k]) d[k] = inc[k]; }); delete d.id; }
+        else { id = B.newId("staff"); d = mergeInto(blankStaff(""), inc); ["doiTuong", "trangThai"].forEach(k => { if (inc[k]) d[k] = inc[k]; }); d.createdAt = now; }
+        d.khoaId = khoa; d.updatedAt = now; d.updatedBy = S.me.hoTen + " (nhập Excel)";
+        await B.set("staff", id, d);
+        const j = S.staff.findIndex(s => s.id === id); if (j >= 0) S.staff[j] = { id, ...d }; else S.staff.push({ id, ...d });
+        ok++;
+      } catch (e) { skip++; console.warn(e); }
+      pg.firstElementChild.style.width = ((ri + 1) / X.rows.length * 100) + "%";
+    }
+    log("Nhập Excel", { name: `${ok} hồ sơ từ ${X.file}` });
+    toast(`Đã nhập/cập nhật ${ok} hồ sơ${skip ? `, bỏ qua ${skip} dòng (thiếu tên/khoa hoặc ngoài phạm vi quyền)` : ""}`); S.xl = null; render();
+  },
+  template() {
+    if (!window.XLSX) return toast("Chưa tải được thư viện Excel (cần mạng)", 1);
+    const wb = XLSX.utils.book_new(); const head = FLAT.map(f => f.label + (f.o.req ? " *" : ""));
+    const ws = XLSX.utils.aoa_to_sheet([head, FLAT.map(f => f.type === "date" ? "dd/mm/yyyy" : f.type === "dept" ? (S.depts[0]?.ten || "Khoa Dược") : f.o.opts ? f.o.opts.filter(Boolean)[0] : "")]);
+    ws["!cols"] = head.map(h => ({ wch: Math.max(12, Math.min(30, h.length)) })); XLSX.utils.book_append_sheet(wb, ws, "Mẫu nhập");
+    XLSX.writeFile(wb, "Mau_nhap_nhan_luc.xlsx");
+  },
+  // ----- tài khoản
+  accForm(uid) {
+    const u = uid ? S.users.find(x => x.id === uid) : null;
+    S.af = u ? clone(u) : { hoTen: "", login: "", pw: randPw(), role: isAdmin() ? "truongkhoa" : "nhanvien", chucDanh: "", khoaId: isAdmin() ? "" : S.me.khoaId, staffId: "", perms: { editSelf: true } };
+    S.af.roleKey = roleKeyOf(S.af);
+    S.af._id = uid || ""; App.accRender();
+  },
+  accRender() {
+    const a = S.af, isNew = !a._id;
+    const staffOpts = S.staff.filter(s => s.id === a.staffId || (s.khoaId === a.khoaId && (!s.uid || s.uid === a._id))).sort((x, y) => nameOf(x).localeCompare(nameOf(y), "vi"));
+    modal(`<h3>${isNew ? "Tạo tài khoản" : "Sửa tài khoản"}</h3><div class="form">
+      <label class="f">Vai trò<select id="af_role" ${roleChoices().length > 1 ? "" : "disabled"} onchange="App.accSet('roleKey',this.value)">${ROLE_OPTS.filter(o => roleChoices().includes(o[0]) || o[0] === a.roleKey).map(o => `<option value="${o[0]}" ${a.roleKey === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select></label>
+      <label class="f">Khoa / phòng<select id="af_khoa" ${isAdmin() ? "" : "disabled"} onchange="App.accSet('khoaId',this.value)">${deptOptions(a.khoaId)}</select></label>
+      <label class="f wide">Liên kết hồ sơ nhân sự<select id="af_staff" onchange="App.accSet('staffId',this.value)"><option value="">— không liên kết —</option>${staffOpts.map(s => `<option value="${s.id}" ${s.id === a.staffId ? "selected" : ""}>${esc(nameOf(s))} · ${fmtDate(s.coBan?.ngaySinh)}</option>`).join("")}</select></label>
+      <label class="f">Họ và tên hiển thị<input type="text" id="af_name" value="${esc(a.hoTen)}"></label>
+      <label class="f">Tên đăng nhập hoặc email<input type="text" id="af_login" value="${esc(a.login)}" ${isNew ? "" : "disabled"}></label>
+      ${isNew ? `<label class="f">Mật khẩu ban đầu<input type="text" id="af_pw" value="${esc(a.pw)}"></label>` : ""}
+    </div>
+    ${a.role === "nhanvien" && a.chucDanh ? `<div class="note" style="margin-top:12px"><b>${esc(a.chucDanh)}</b>: quản lý cùng trưởng khoa — xem, thêm, sửa hồ sơ trong khoa; tạo, khóa, phân quyền tài khoản nhân viên khoa. Không sửa được tài khoản trưởng khoa. Có thể bỏ bớt quyền ở dưới.</div>` : ""}
+    ${a.role === "nhanvien" ? `<div class="subt"><b>Quyền chi tiết</b></div><div class="grid" style="gap:6px">${PERMS.filter(([k]) => k !== "manageAcc" || isAdmin() || isTK()).map(([k, l]) => `<label class="chk"><input type="checkbox" data-perm="${k}" ${a.perms?.[k] ? "checked" : ""}> ${l}</label>`).join("")}</div>` : `<div class="note" style="margin-top:12px">${a.role === "admin" ? "Quản trị: xem, sửa, nhập, xuất toàn bộ hồ sơ; quản lý khoa/phòng, tài khoản." : "Trưởng / phó khoa, phòng: toàn quyền trong khoa như nhau — xem, thêm, sửa hồ sơ; nhập 2C; tạo và phân quyền tài khoản nhân viên khoa."}</div>`}
+    <div class="foot"><button class="btn" onclick="App.close()">Hủy</button><button class="btn pri" id="af_ok" onclick="App.accSave()">${isNew ? "Tạo tài khoản" : "Lưu"}</button></div>`);
+  },
+  accRead() {
+    const a = S.af; a.hoTen = $("#af_name").value.trim(); if ($("#af_login")) a.login = $("#af_login").value.trim(); if ($("#af_pw")) a.pw = $("#af_pw").value;
+    if ($$("[data-perm]").length) { a.perms = { ...(a.perms || {}) }; $$("[data-perm]").forEach(c => a.perms[c.dataset.perm] = c.checked); }
+    if (a.perms?.manageAcc) { a.perms.viewDept = true; a.perms.editDept = true; }   // quản lý tài khoản cần quyền xem/sửa hồ sơ khoa để liên kết
+    if (isMgrNV()) a.perms.manageAcc = false;
+  },
+  accSet(k, v) {
+    App.accRead(); const a = S.af; a[k] = v;
+    if (k === "khoaId" && !a._id) a.staffId = "";
+    if (k === "roleKey") { const o = ROLE_OPTS.find(x => x[0] === v); a.role = o[2]; a.chucDanh = o[3]; a.perms = o[3] ? { ...MGR_PERMS } : { editSelf: true }; }
+    if (k === "staffId" && v) { const s = S.staff.find(x => x.id === v); if (!a.hoTen) a.hoTen = nameOf(s); if (!a._id && !a.login) a.login = genLogin(nameOf(s), new Set(S.users.map(u => (u.login || "").toLowerCase()))); }
+    App.accRender();
+  },
+  async accSave() {
+    App.accRead(); const a = S.af;
+    if (!a.hoTen || !a.khoaId || (!a._id && !a.login)) return toast("Nhập đủ họ tên, khoa/phòng, tên đăng nhập", 1);
+    if (!a._id && String(a.pw).length < 6) return toast("Mật khẩu tối thiểu 6 ký tự", 1);
+    const perms = a.role === "nhanvien" ? (a.perms || {}) : {};
+    $("#af_ok").disabled = true;
+    try {
+      if (!a._id) {
+        const email = loginToEmail(a.login);
+        const uid = await B.createAccount(email, a.pw);
+        const u = { hoTen: a.hoTen, login: a.login, email, role: a.role, chucDanh: a.chucDanh || "", khoaId: a.khoaId, staffId: a.staffId || "", perms, active: true, mustChangePw: true, createdAt: nowISO(), createdBy: S.me.hoTen };
+        const ops = [{ op: "set", col: "users", id: uid, data: u }]; if (a.staffId) ops.push({ op: "update", col: "staff", id: a.staffId, data: { uid } });
+        await B.batch(ops);
+        S.users.push({ id: uid, ...u }); if (a.staffId) S.staff.find(s => s.id === a.staffId).uid = uid;
+        log("Tạo tài khoản", { name: `${a.hoTen} (${a.login}) – ${roleLabel(a)}`, khoaId: a.khoaId });
+        closeModal(); render();
+        modal(`<h3>Đã tạo tài khoản</h3><p>Gửi thông tin đăng nhập cho <b>${esc(a.hoTen)}</b>:</p><div class="card" style="font-family:monospace;font-size:15px">Tên đăng nhập: ${esc(a.login)}<br>Mật khẩu: ${esc(a.pw)}</div><p class="muted">Người dùng sẽ phải đổi mật khẩu ở lần đăng nhập đầu tiên.</p><div class="foot"><button class="btn pri" onclick="App.close()">Xong</button></div>`);
+      } else {
+        const old = S.users.find(u => u.id === a._id), oldStaffId = old.staffId || "";
+        const data = { hoTen: a.hoTen, role: a.role, chucDanh: a.chucDanh || "", khoaId: a.khoaId, staffId: a.staffId || "", perms };
+        const ops = [{ op: "update", col: "users", id: a._id, data }];
+        const os = oldStaffId && oldStaffId !== a.staffId ? S.staff.find(s => s.id === oldStaffId) : null;
+        if (os) ops.push({ op: "update", col: "staff", id: oldStaffId, data: { uid: "" } });
+        const st = a.staffId ? S.staff.find(s => s.id === a.staffId) : null;
+        let moved = null;
+        const khoaChanged = st && isAdmin() && st.khoaId && st.khoaId !== a.khoaId;
+        const roleChanged = roleKeyOf(old) !== a.roleKey;
+        const title = a.chucDanh || (a.role === "truongkhoa" ? "Trưởng khoa / phòng" : "");
+        if (st && (khoaChanged || (roleChanged && title))) {
+          moved = { "congTac.quaTrinh": khoaMoveHistory(st, a.khoaId, roleChanged && title ? title : "") };
+          if (khoaChanged) moved.khoaId = a.khoaId;
+          if (roleChanged && title) moved["luong.chucVu"] = title;
+        }
+        if (a.staffId && (a.staffId !== oldStaffId || moved)) ops.push({ op: "update", col: "staff", id: a.staffId, data: { uid: a._id, ...(moved || {}) } });
+        await B.batch(ops);
+        Object.assign(old, data);
+        if (os) os.uid = "";
+        if (st) { st.uid = a._id; if (moved) {
+          log(khoaChanged ? "Chuyển khoa" : "Bổ nhiệm / đổi chức danh", { id: st.id, name: `${st.coBan?.hoTen}: ${khoaChanged ? deptName(st.khoaId) + " → " + deptName(a.khoaId) : ""}${roleChanged && title ? " (" + title + ")" : ""}`, khoaId: a.khoaId });
+          st.khoaId = a.khoaId; st.congTac = st.congTac || {}; st.congTac.quaTrinh = moved["congTac.quaTrinh"];
+          if (moved["luong.chucVu"]) { st.luong = st.luong || {}; st.luong.chucVu = moved["luong.chucVu"]; } } }
+        log("Sửa tài khoản / phân quyền", { name: a.hoTen, khoaId: a.khoaId });
+        closeModal(); render(); toast(moved ? `Đã lưu${khoaChanged ? " — hồ sơ chuyển sang " + deptName(a.khoaId) : ""}${roleChanged && title ? " — chức vụ: " + title : ""}, đã ghi quá trình công tác` : "Đã lưu");
+      }
+    } catch (e) { toast(errMsg(e), 1); const b = $("#af_ok"); if (b) b.disabled = false; }
+  },
+  resetPw(uid) {
+    const u = S.users.find(x => x.id === uid); if (!u) return;
+    modal(`<h3>Đặt lại mật khẩu</h3><p>Tạo mật khẩu tạm mới cho <b>${esc(u.hoTen)}</b> (tên đăng nhập <b>${esc(u.login || u.email)}</b>). Mật khẩu cũ sẽ không dùng được nữa; người dùng phải đổi mật khẩu ngay khi đăng nhập.</p>
+      <div class="foot"><button class="btn" onclick="App.close()">Hủy</button><button class="btn pri" id="rp_ok" onclick="App.doResetPw('${uid}')">Đặt lại mật khẩu</button></div>`);
+  },
+  async doResetPw(uid) {
+    const u = S.users.find(x => x.id === uid); $("#rp_ok").disabled = true; $("#rp_ok").textContent = "Đang xử lý…";
+    try {
+      let pw;
+      if (B.mode === "demo") { pw = randPw(); await B.adminSetPw(u.email, pw); }
+      else pw = (await driveCall({ action: "resetPw", targetUid: uid })).password;
+      await B.update("users", uid, { mustChangePw: true }).catch(() => {}); u.mustChangePw = true;
+      log("Đặt lại mật khẩu", { name: `${u.hoTen} (${u.login || u.email})`, khoaId: u.khoaId });
+      render();
+      const txt = `Tên đăng nhập: ${u.login || u.email}\nMật khẩu tạm: ${pw}`;
+      modal(`<h3>Đã đặt lại mật khẩu</h3><p>Gửi thông tin này cho <b>${esc(u.hoTen)}</b>:</p>
+        <div class="card" style="font-family:monospace;font-size:16px">Tên đăng nhập: <b>${esc(u.login || u.email)}</b><br>Mật khẩu tạm: <b>${esc(pw)}</b></div>
+        <p class="muted">Mật khẩu chỉ hiện một lần này. Người dùng sẽ phải đổi mật khẩu khi đăng nhập.</p>
+        <div class="foot"><button class="btn" id="rp_copy">Sao chép</button><button class="btn pri" onclick="App.close()">Xong</button></div>`);
+      $("#rp_copy").onclick = () => navigator.clipboard.writeText(txt).then(() => toast("Đã sao chép"), () => toast("Không sao chép được, hãy chép tay", 1));
+    } catch (e) { toast(errMsg(e), 1); closeModal(); }
+  },
+  async toggleAcc(uid) {
+    const u = S.users.find(x => x.id === uid); if (!confirm(`${u.active ? "Khóa" : "Mở khóa"} tài khoản ${u.hoTen}?`)) return;
+    try { await B.update("users", uid, { active: !u.active }); u.active = !u.active; log(u.active ? "Mở khóa tài khoản" : "Khóa tài khoản", { name: u.hoTen, khoaId: u.khoaId }); render(); } catch (e) { toast(errMsg(e), 1); }
+  },
+  bulkAcc() {
+    const khoa = isAdmin() ? (S.bulkKhoa || S.depts[0]?.id || "") : S.me.khoaId; S.bulkKhoa = khoa;
+    const taken = new Set(S.users.map(u => (u.login || "").toLowerCase()));
+    const list = S.staff.filter(s => s.khoaId === khoa && !s.uid && working(s)).map(s => ({ s, login: genLogin(nameOf(s), taken), pw: randPw(), on: true }));
+    S.bulk = list;
+    modal(`<h3>Tạo tài khoản hàng loạt</h3>
+      ${isAdmin() ? `<label class="f" style="max-width:320px">Khoa / phòng<select onchange="S_bulk(this.value)">${deptOptions(khoa)}</select></label>` : ""}
+      <p class="muted">Tạo tài khoản vai trò <b>Nhân viên</b> (quyền: tự cập nhật hồ sơ của mình) cho ${list.length} người chưa có tài khoản. Mỗi người có mật khẩu ngẫu nhiên, phải đổi ở lần đăng nhập đầu.</p>
+      <div class="tbl-wrap" style="max-height:340px"><table class="t"><thead><tr><th></th><th>Họ và tên</th><th>Tên đăng nhập</th><th>Mật khẩu</th></tr></thead><tbody>
+      ${list.map((x, i) => `<tr><td><input type="checkbox" checked onchange="S.bulk[${i}].on=this.checked"></td><td>${esc(nameOf(x.s))}</td><td><input type="text" value="${esc(x.login)}" onchange="S.bulk[${i}].login=this.value.trim()" style="width:140px"></td><td style="font-family:monospace">${x.pw}</td></tr>`).join("") || `<tr><td colspan="4" class="empty">Mọi nhân viên đã có tài khoản</td></tr>`}
+      </tbody></table></div><div class="prog" id="bk_prog" style="display:none"><div></div></div>
+      <div class="foot"><button class="btn" onclick="App.close()">Đóng</button><button class="btn pri" id="bk_ok" onclick="App.bulkRun()" ${list.length ? "" : "disabled"}>Tạo tài khoản</button></div>`, 1);
+  },
+  async bulkRun() {
+    const L = S.bulk.filter(x => x.on); $("#bk_ok").disabled = true; $("#bk_prog").style.display = "block";
+    const done = [];
+    for (let i = 0; i < L.length; i++) {
+      const x = L[i];
+      try {
+        let login = x.login, uid, n = 2;
+        for (;;) { try { uid = await B.createAccount(loginToEmail(login), x.pw); break; } catch (e) { if (e.code === "auth/email-already-in-use" && n < 10) login = x.login + n++; else throw e; } }
+        const u = { hoTen: nameOf(x.s), login, email: loginToEmail(login), role: "nhanvien", khoaId: x.s.khoaId, staffId: x.s.id, perms: { editSelf: true }, active: true, mustChangePw: true, createdAt: nowISO(), createdBy: S.me.hoTen };
+        await B.batch([{ op: "set", col: "users", id: uid, data: u }, { op: "update", col: "staff", id: x.s.id, data: { uid } }]);
+        S.users.push({ id: uid, ...u }); x.s.uid = uid; done.push([u.hoTen, deptName(u.khoaId), login, x.pw]);
+      } catch (e) { done.push([nameOf(x.s), deptName(x.s.khoaId), "LỖI: " + errMsg(e), ""]); }
+      $("#bk_prog").firstElementChild.style.width = ((i + 1) / L.length * 100) + "%";
+      if (B.mode === "firebase") await sleep(400);
+    }
+    log("Tạo tài khoản hàng loạt", { name: `${done.length} tài khoản`, khoaId: S.bulkKhoa });
+    S.bulkDone = done; render();
+    modal(`<h3>Đã tạo ${done.filter(d => d[3]).length} tài khoản</h3><p class="muted">Tải danh sách để in/gửi cho nhân viên. Mật khẩu chỉ hiển thị một lần.</p>
+      <div class="tbl-wrap" style="max-height:340px"><table class="t"><thead><tr><th>Họ và tên</th><th>Khoa</th><th>Tên đăng nhập</th><th>Mật khẩu</th></tr></thead><tbody>${done.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+      <div class="foot"><button class="btn" onclick="App.bulkXlsx()">Tải Excel</button><button class="btn pri" onclick="App.close()">Xong</button></div>`, 1);
+  },
+  bulkXlsx() { if (!window.XLSX) return; const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Họ và tên", "Khoa/phòng", "Tên đăng nhập", "Mật khẩu"], ...S.bulkDone]), "Tài khoản"); XLSX.writeFile(wb, `TaiKhoan_${isoOf(new Date())}.xlsx`); },
+  // ----- khoa phòng
+  deptForm(id) {
+    const d = id ? S.depts.find(x => x.id === id) : { ten: "", ma: "", thuTu: S.depts.length + 1 };
+    modal(`<h3>${id ? "Sửa" : "Thêm"} khoa / phòng</h3><div class="form"><label class="f wide">Tên<input type="text" id="dp_t" value="${esc(d.ten)}"></label><label class="f">Mã<input type="text" id="dp_m" value="${esc(d.ma || "")}"></label><label class="f">Thứ tự<input type="number" id="dp_o" value="${d.thuTu || ""}"></label></div>
+      <div class="foot"><button class="btn" onclick="App.close()">Hủy</button><button class="btn pri" onclick="App.deptSave('${id || ""}')">Lưu</button></div>`);
+  },
+  async deptSave(id) {
+    const data = { ten: $("#dp_t").value.trim(), ma: $("#dp_m").value.trim(), thuTu: +$("#dp_o").value || 0 }; if (!data.ten) return toast("Nhập tên", 1);
+    try { const nid = id || B.newId("departments"); await B.set("departments", nid, data, true); const i = S.depts.findIndex(x => x.id === nid); if (i >= 0) S.depts[i] = { id: nid, ...data }; else S.depts.push({ id: nid, ...data }); S.depts.sort((a, b) => (a.thuTu || 999) - (b.thuTu || 999)); closeModal(); render(); } catch (e) { toast(errMsg(e), 1); }
+  },
+  async delDept(id) {
+    if (S.staff.some(s => s.khoaId === id) || S.users.some(u => u.khoaId === id)) return toast("Khoa còn hồ sơ hoặc tài khoản — chuyển đi trước khi xóa", 1);
+    if (!confirm("Xóa khoa/phòng này?")) return;
+    try { await B.del("departments", id); S.depts = S.depts.filter(d => d.id !== id); render(); } catch (e) { toast(errMsg(e), 1); }
+  },
+  async seedDepts() {
+    const ops = DEFAULT_DEPTS.map((t, i) => ({ op: "set", col: "departments", id: B.newId("departments"), data: { ten: t, ma: "", thuTu: i + 1 } }));
+    try { await B.batch(ops); S.depts = ops.map(o => ({ id: o.id, ...o.data })); render(); } catch (e) { toast(errMsg(e), 1); }
+  },
+  async saveSettings() {
+    const d = { tenBV: $("#se_bv").value.trim(), coQuanQL: $("#se_ql").value.trim() };
+    try { await B.set("settings", "app", d, true); Object.assign(S.settings, d); toast("Đã lưu"); render(); } catch (e) { toast(errMsg(e), 1); }
+  },
+  reloadLogs() { S.logs = null; render(); },
+  changePw() { openChangePw(false); },
+  async doChangePw(force) {
+    const o = $("#pw_o").value, n = $("#pw_n").value, c = $("#pw_c").value;
+    if (n !== c) return toast("Mật khẩu nhập lại không khớp", 1);
+    if (n.length < 6) return toast("Mật khẩu tối thiểu 6 ký tự", 1);
+    if (n === o) return toast("Mật khẩu mới phải khác mật khẩu cũ", 1);
+    try { await B.changePassword(o, n); if (S.me.mustChangePw) { await B.update("users", S.user.uid, { mustChangePw: false }); S.me.mustChangePw = false; } closeModal(); toast("Đã đổi mật khẩu"); } catch (e) { toast(errMsg(e), 1); }
+  },
+  close: closeModal
+};
+window.S_bulk = v => { S.bulkKhoa = v; App.bulkAcc(); };
+window.App = App; window.S = S;
+start();
+</script>
+</body>
+</html>
