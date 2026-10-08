@@ -337,6 +337,35 @@ const SECTIONS = [
 ];
 SECTIONS.forEach(s => s.tables = s.tables || []);
 const SELF_KEYS = ["coBan", "luong", "giaDinh", "daoTao", "congTac", "khenThuong", "danhGia", "dangDoan", "banThan", "kinhTe", "khac", "doiTuong", "updatedAt", "updatedBy"];
+/* -------- Danh mục lựa chọn (quản trị viên khai báo trong mục "Danh mục") -------- */
+const DAN_TOC = ["Kinh", "Tày", "Thái", "Mường", "Khmer", "Hoa", "Nùng", "H'Mông", "Dao", "Gia Rai", "Ê Đê", "Ba Na", "Sán Chay", "Chăm", "Cơ Ho", "Xơ Đăng", "Sán Dìu", "Hrê", "Ra Glai", "Mnông", "Thổ", "Xtiêng", "Khơ Mú", "Bru - Vân Kiều", "Cơ Tu", "Giáy", "Tà Ôi", "Mạ", "Giẻ - Triêng", "Co", "Chơ Ro", "Xinh Mun", "Hà Nhì", "Chu Ru", "Lào", "La Chí", "Kháng", "Phù Lá", "La Hủ", "La Ha", "Pà Thẻn", "Lự", "Ngái", "Chứt", "Lô Lô", "Mảng", "Cơ Lao", "Bố Y", "Cống", "Si La", "Pu Péo", "Rơ Măm", "Brâu", "Ơ Đu"];
+const DEFAULT_LISTS = {
+  "coBan.gioiTinh": ["Nam", "Nữ", "Khác"], "coBan.danToc": DAN_TOC,
+  "coBan.tonGiao": ["Không", "Phật giáo", "Công giáo", "Tin lành", "Cao Đài", "Hòa Hảo", "Hồi giáo", "Khác"],
+  "coBan.quocTich": ["Việt Nam"], "coBan.honNhan": OPT.honNhan.filter(Boolean), "coBan.nhomMau": ["A", "B", "AB", "O"],
+  "coBan.sucKhoe": ["Tốt", "Khá", "Trung bình", "Yếu"], "coBan.thanhPhan": ["Bần nông", "Trung nông", "Công nhân", "Công chức", "Viên chức", "Tiểu thương", "Khác"],
+  "doiTuong": OPT.doiTuong, "trangThai": OPT.trangThai, "luong.chuKy": OPT.chuKy,
+  "daoTao.trinhDo": OPT.trinhDo.filter(Boolean), "daoTao.lyLuanCT": OPT.llct.filter(Boolean), "daoTao.qlnn": OPT.qlnn.filter(Boolean),
+  "daoTao.phoThong": ["12/12", "10/10", "9/12"], "daoTao.hocHam": ["Giáo sư", "Phó giáo sư"],
+  "congTac.hinhThucTD": OPT.hinhThucTD.filter(Boolean), "congTac.ngheTruocTD": ["Sinh viên", "Học sinh", "Lao động tự do", "Nhân viên hợp đồng"],
+  "giaDinh.ds.ben": OPT.ben, "giaDinh.ds.quanHe": ["Cha đẻ", "Mẹ đẻ", "Cha nuôi", "Mẹ nuôi", "Vợ", "Chồng", "Con trai", "Con gái", "Anh trai", "Chị gái", "Em trai", "Em gái", "Cha vợ", "Mẹ vợ", "Cha chồng", "Mẹ chồng", "Anh trai vợ", "Chị gái vợ", "Em trai vợ", "Em gái vợ", "Anh trai chồng", "Chị gái chồng", "Em trai chồng", "Em gái chồng"],
+  "daoTao.quaTrinh.hinhThuc": ["Chính quy", "Tại chức", "Vừa làm vừa học", "Liên thông", "Văn bằng 2", "Đào tạo từ xa", "Bồi dưỡng", "Chuyên tu"],
+  "daoTao.quaTrinh.vanBang": ["Bằng tiến sĩ", "Bằng chuyên khoa II", "Bằng thạc sĩ", "Bằng chuyên khoa I", "Bằng đại học", "Bằng cao đẳng", "Bằng trung cấp", "Chứng chỉ", "Chứng nhận"],
+  "khenThuong.khen.hinhThuc": ["Giấy khen", "Bằng khen", "Chiến sĩ thi đua cơ sở", "Chiến sĩ thi đua cấp tỉnh", "Lao động tiên tiến", "Huân chương Lao động", "Thầy thuốc ưu tú", "Thầy thuốc nhân dân"],
+  "khenThuong.khen.cap": ["Cơ sở", "Huyện", "Sở/Ngành", "Tỉnh", "Bộ", "Chính phủ", "Nhà nước"],
+  "khenThuong.kyLuat.hinhThuc": ["Khiển trách", "Cảnh cáo", "Hạ bậc lương", "Cách chức", "Buộc thôi việc"],
+  "danhGia.ds.ketQua": OPT.ketQua, "danhGia.ds.thiDua": ["Lao động tiên tiến", "Chiến sĩ thi đua cơ sở", "Chiến sĩ thi đua cấp tỉnh", "Chiến sĩ thi đua toàn quốc"]
+};
+const LIST_TYPES = ["text", "sel"];
+const listFor = path => { const l = (S.lists && Array.isArray(S.lists[path])) ? S.lists[path] : (DEFAULT_LISTS[path] || null); return l && l.length ? l : null; };
+const listStrict = (path, type) => (S.listStrict && path in S.listStrict) ? !!S.listStrict[path] : type === "sel";
+const dlId = path => "dl_" + path.replace(/[^a-zA-Z0-9]/g, "_");
+// Ô chọn/gợi ý theo danh mục. attrs: thuộc tính data-*; trả về null nếu trường không có danh mục
+function listInput(path, type, val, attrs, extra = "") {
+  const opts = listFor(path); if (!opts) return null;
+  if (listStrict(path, type)) { const o = ["", ...opts]; if (val && !o.includes(val)) o.push(val); return `<select ${attrs} ${extra}>${o.map(x => `<option ${x === (val || "") ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>`; }
+  return `<input type="text" list="${dlId(path)}" ${attrs} value="${esc(val)}" ${extra} autocomplete="off"><datalist id="${dlId(path)}">${opts.map(x => `<option value="${esc(x)}">`).join("")}</datalist>`;
+}
 const FLAT = [];
 SECTIONS.forEach(s => s.fields.filter(f => f[2] !== "files").forEach(f => FLAT.push({ path: f[3]?.top ? f[0] : `${s.key}.${f[0]}`, key: f[0], label: f[1], type: f[2], o: f[3] || {}, sec: s })));
 const ROLE = { admin: "Quản trị (TCHC)", truongkhoa: "Trưởng khoa / phòng", nhanvien: "Nhân viên" };
@@ -553,6 +582,8 @@ async function loadAll() {
   const k = S.me.khoaId;
   S.depts = (await B.list("departments")).sort((a, b) => (a.thuTu || 999) - (b.thuTu || 999) || a.ten.localeCompare(b.ten, "vi"));
   const st = await B.get("settings", "app").catch(() => null);
+  const ls = await B.get("settings", "lists").catch(() => null);
+  S.lists = ls?.lists || {}; S.listStrict = ls?.strict || {};
   S.settings = { ...DEFAULT_SETTINGS, ...(st || {}) };
   if (isAdmin()) S.staff = await B.list("staff");
   else if (canList()) S.staff = await B.list("staff", [["khoaId", "==", k]]);
@@ -628,6 +659,7 @@ const ICON = {
   accounts: '<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   depts: '<path d="M4 21V5l8-3 8 3v16"/><path d="M9 21v-5h6v5M9 9h.01M15 9h.01M9 13h.01M15 13h.01"/>',
   logs: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  lists: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 5.5l1 1 2-2M4 11.5l1 1 2-2M4 17.5l1 1 2-2"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M16 7l3 3M18 5l2 2"/>',
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>'
@@ -637,14 +669,14 @@ function navItems() {
   return [
     ["dash", "Tổng quan", canList()], ["staff", "Hồ sơ nhân sự", canList()], ["mine", "Hồ sơ của tôi", true],
     ["import", "Nhập dữ liệu", canImportAll() || canMakeMine()], ["accounts", "Tài khoản", canAccounts()], ["depts", "Khoa / phòng", isAdmin()],
-    ["logs", "Nhật ký", isAdmin() || isTK()], ["settings", "Cài đặt", isAdmin()]
+    ["logs", "Nhật ký", isAdmin() || isTK()], ["lists", "Danh mục", isAdmin()], ["settings", "Cài đặt", isAdmin()]
   ].filter(x => x[2]);
 }
 function render() {
   if (!S.me) return renderLogin();
   const v = S.view;
   const active = v === "profile" ? (S.cur && S.cur === S.me.staffId ? "mine" : "staff") : v;
-  const body = { dash: viewDash, staff: viewStaff, profile: viewProfile, mine: viewProfile, import: viewImport, accounts: viewAccounts, depts: viewDepts, logs: viewLogs, settings: viewSettings }[v] || viewDash;
+  const body = { lists: viewLists, dash: viewDash, staff: viewStaff, profile: viewProfile, mine: viewProfile, import: viewImport, accounts: viewAccounts, depts: viewDepts, logs: viewLogs, settings: viewSettings }[v] || viewDash;
   const scope = isAdmin() ? "Toàn bệnh viện" : deptName(S.me.khoaId);
   $("#app").innerHTML = `<div class="shell">
     <aside class="side">
@@ -740,8 +772,8 @@ function viewStaff() {
   <div class="filters">
     <input type="text" id="st_q" placeholder="Tìm theo tên, CCCD, mã CB, chức vụ, điện thoại…" value="${esc(S.f.q)}" oninput="App.filt('q',this.value,1)">
     ${isAdmin() ? `<select onchange="App.filt('khoa',this.value)"><option value="">Tất cả khoa/phòng</option>${S.depts.map(d => `<option value="${d.id}" ${S.f.khoa === d.id ? "selected" : ""}>${esc(d.ten)}</option>`).join("")}</select>` : ""}
-    <select onchange="App.filt('tt',this.value)"><option value="working" ${S.f.tt === "working" ? "selected" : ""}>Đang công tác</option><option value="" ${S.f.tt === "" ? "selected" : ""}>Tất cả trạng thái</option>${OPT.trangThai.map(t => `<option ${S.f.tt === t ? "selected" : ""}>${t}</option>`).join("")}</select>
-    <select onchange="App.filt('dt',this.value)"><option value="">Mọi đối tượng</option>${OPT.doiTuong.map(t => `<option ${S.f.dt === t ? "selected" : ""}>${t}</option>`).join("")}</select>
+    <select onchange="App.filt('tt',this.value)"><option value="working" ${S.f.tt === "working" ? "selected" : ""}>Đang công tác</option><option value="" ${S.f.tt === "" ? "selected" : ""}>Tất cả trạng thái</option>${(listFor("trangThai") || OPT.trangThai).map(t => `<option ${S.f.tt === t ? "selected" : ""}>${t}</option>`).join("")}</select>
+    <select onchange="App.filt('dt',this.value)"><option value="">Mọi đối tượng</option>${(listFor("doiTuong") || OPT.doiTuong).map(t => `<option ${S.f.dt === t ? "selected" : ""}>${t}</option>`).join("")}</select>
   </div>
   <div class="tbl-wrap"><table class="t"><thead><tr><th>#</th><th>Họ và tên</th><th>Khoa / phòng</th><th>Chức vụ</th><th>Chức danh nghề nghiệp</th><th>Bậc / hệ số</th><th>Trình độ</th><th>Nâng lương tới</th><th>TK</th></tr></thead><tbody>
   ${list.map((s, i) => { const r = nextRaise(s); const n = r ? daysTo(r) : null; return `<tr class="click" onclick="App.open('${s.id}')">
@@ -772,7 +804,9 @@ function fieldInput(path, f, val, ro) {
   if (k === "trangThai" && S.draft && !canManage(S.draft.khoaId)) ro = true;
   const a = `data-path="${path}" ${ro ? "disabled" : ""}`;
   let inp;
-  if (type === "sel") { const opts = [...o.opts]; if (val && !opts.includes(val)) opts.push(val); inp = `<select ${a}>${opts.map(x => `<option ${x === (val || "") ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>`; }
+  const li = LIST_TYPES.includes(type) ? listInput(path, type, val, a) : null;
+  if (li) inp = li;
+  else if (type === "sel") { const opts = [...o.opts]; if (val && !opts.includes(val)) opts.push(val); inp = `<select ${a}>${opts.map(x => `<option ${x === (val || "") ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>`; }
   else if (type === "dept") { const ds = isAdmin() ? S.depts : S.depts.filter(d => d.id === S.me.khoaId || d.id === val); inp = `<select ${a} ${isAdmin() ? "" : "disabled"}><option value="">— chọn —</option>${ds.map(d => `<option value="${d.id}" ${d.id === val ? "selected" : ""}>${esc(d.ten)}</option>`).join("")}</select>`; }
   else if (type === "files") return `<div class="f wide" style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">${esc(label)}${filesHTML(path, -1, val, true)}</div>`;
   else if (type === "area") inp = `<textarea ${a}>${esc(val)}</textarea>`;
@@ -796,6 +830,7 @@ function sectionHTML(sec, s, editable) {
     if (editable) {
       h += `<div class="tbl-wrap"><table class="et"><thead><tr>${t.cols.map(c => `<th>${esc(c[1])}</th>`).join("")}<th></th></tr></thead><tbody>${rows.map((r, i) => `<tr>${t.cols.map(c => {
         const a = `data-tbl="${sec.key}.${t.key}" data-row="${i}" data-col="${c[0]}"`; const v = r[c[0]] ?? "";
+        if (LIST_TYPES.includes(c[2])) { const li = listInput(`${sec.key}.${t.key}.${c[0]}`, c[2], v, a, c[2] === "text" ? "" : ""); if (li) return `<td>${li}</td>`; }
         if (c[2] === "sel") { const opts = ["", ...c[3].opts]; if (v && !opts.includes(v)) opts.push(v); return `<td><select ${a}>${opts.map(x => `<option ${x === v ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></td>`; }
         if (c[2] === "area") return `<td style="min-width:260px"><textarea ${a}>${esc(v)}</textarea></td>`;
         if (c[2] === "date") return `<td><input type="date" ${a} value="${esc(v)}"></td>`;
@@ -929,6 +964,30 @@ function viewSettings() {
     <label class="f wide">Tên bệnh viện<input type="text" id="se_bv" value="${esc(S.settings.tenBV)}"></label>
     <label class="f wide">Cơ quan, đơn vị có thẩm quyền quản lý CBCC (in trên Mẫu 2C)<input type="text" id="se_ql" value="${esc(S.settings.coQuanQL)}"></label>
   </div><div class="foot" style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn pri" onclick="App.saveSettings()">Lưu</button></div></div>`;
+}
+
+/* ============================ DANH MỤC ============================ */
+function listFields() {
+  const out = [];
+  SECTIONS.forEach(sec => {
+    sec.fields.forEach(f => { if (LIST_TYPES.includes(f[2])) out.push({ path: f[3]?.top ? f[0] : `${sec.key}.${f[0]}`, label: f[1], type: f[2], sec }); });
+    sec.tables.forEach(t => t.cols.forEach(c => { if (LIST_TYPES.includes(c[2])) out.push({ path: `${sec.key}.${t.key}.${c[0]}`, label: `${c[1]} (bảng ${t.title.replace(/\s*\(.*\)/, "")})`, type: c[2], sec }); }));
+  });
+  return out;
+}
+function viewLists() {
+  const q = norm(S.lq || ""), onlySet = !!S.lOnly;
+  const F = listFields().filter(f => (!q || norm(f.label + " " + f.sec.title).includes(q)) && (!onlySet || listFor(f.path)));
+  const bySec = SECTIONS.map(sec => [sec, F.filter(f => f.sec === sec)]).filter(x => x[1].length);
+  return top("Danh mục lựa chọn") + `<div class="note">Khai báo sẵn các lựa chọn cho từng trường để mọi người chọn khi nhập hồ sơ, tránh gõ mỗi người một kiểu (ví dụ “Nam/Nữ/Khác”, 54 dân tộc, tôn giáo…).
+    <b>Bắt buộc chọn</b>: chỉ được chọn trong danh sách. <b>Gợi ý</b>: hiện danh sách để chọn nhanh nhưng vẫn gõ được nội dung khác. Sửa danh mục không làm thay đổi dữ liệu đã nhập.</div>
+    <div class="filters"><input type="text" id="lq" placeholder="Tìm trường…" value="${esc(S.lq || "")}" oninput="App.lFilter(this.value)"><label class="chk"><input type="checkbox" ${onlySet ? "checked" : ""} onchange="App.lOnly(this.checked)"> Chỉ trường đã có danh mục</label></div>
+    ${bySec.map(([sec, fs]) => `<div class="card" style="margin-bottom:12px"><h3>${sec.no}. ${esc(sec.title)}</h3><div class="tbl-wrap"><table class="t"><thead><tr><th>Trường</th><th>Các lựa chọn</th><th>Kiểu</th><th></th></tr></thead><tbody>
+      ${fs.map(f => { const l = listFor(f.path); const custom = S.lists && Array.isArray(S.lists[f.path]); return `<tr><td><b>${esc(f.label)}</b></td>
+        <td style="font-size:12.5px">${l ? `${esc(l.slice(0, 8).join(", "))}${l.length > 8 ? ` … <span class="muted">(+${l.length - 8})</span>` : ""}` : `<span class="muted">Chưa có — nhập tự do</span>`}${custom ? ` <span class="tag pri">đã chỉnh</span>` : ""}</td>
+        <td>${l ? (listStrict(f.path, f.type) ? `<span class="tag">Bắt buộc chọn</span>` : `<span class="tag">Gợi ý</span>`) : ""}</td>
+        <td><button class="btn sm" onclick="App.lEdit('${f.path}')">${l ? "Sửa" : "+ Tạo danh mục"}</button></td></tr>`; }).join("")}
+      </tbody></table></div></div>`).join("") || `<div class="empty">Không có trường phù hợp</div>`}`;
 }
 
 /* ============================ NHẬP DỮ LIỆU ============================ */
@@ -1922,6 +1981,31 @@ const App = {
   async saveSettings() {
     const d = { tenBV: $("#se_bv").value.trim(), coQuanQL: $("#se_ql").value.trim() };
     try { await B.set("settings", "app", d, true); Object.assign(S.settings, d); toast("Đã lưu"); render(); } catch (e) { toast(errMsg(e), 1); }
+  },
+  lFilter(v) { S.lq = v; render(); const el = $("#lq"); if (el) { el.focus(); el.setSelectionRange(v.length, v.length); } },
+  lOnly(v) { S.lOnly = v; render(); },
+  lEdit(path) {
+    const f = listFields().find(x => x.path === path); const l = listFor(path) || [];
+    modal(`<h3>Danh mục: ${esc(f.label)}</h3>
+      <label class="f wide">Các lựa chọn — mỗi dòng một lựa chọn, theo đúng thứ tự muốn hiện<textarea id="le_t" style="min-height:260px;font-size:14px">${esc(l.join("\n"))}</textarea></label>
+      <div class="grid" style="gap:6px;margin-top:10px">
+        <label class="chk"><input type="radio" name="le_m" value="1" ${listStrict(path, f.type) ? "checked" : ""}> <b>Bắt buộc chọn</b> trong danh sách (ô chọn thả xuống)</label>
+        <label class="chk"><input type="radio" name="le_m" value="0" ${listStrict(path, f.type) ? "" : "checked"}> <b>Gợi ý</b> — hiện danh sách nhưng vẫn gõ được nội dung khác</label>
+      </div>
+      <div class="foot">${DEFAULT_LISTS[path] ? `<button class="btn" style="margin-right:auto" onclick="App.lReset('${path}')">Khôi phục mặc định</button>` : (S.lists?.[path] ? `<button class="btn bad" style="margin-right:auto" onclick="App.lReset('${path}')">Bỏ danh mục</button>` : "")}<button class="btn" onclick="App.close()">Hủy</button><button class="btn pri" onclick="App.lSave('${path}')">Lưu</button></div>`);
+  },
+  async lSave(path) {
+    const items = [...new Set($("#le_t").value.split("\n").map(x => x.trim()).filter(Boolean))];
+    const strict = $('input[name="le_m"]:checked').value === "1";
+    const lists = { ...(S.lists || {}) }, st = { ...(S.listStrict || {}) };
+    if (items.length) lists[path] = items; else lists[path] = [];
+    st[path] = strict;
+    try { await B.set("settings", "lists", { lists, strict: st, at: nowISO(), by: S.me.hoTen }); S.lists = lists; S.listStrict = st; closeModal(); render(); toast("Đã lưu danh mục"); log("Sửa danh mục", { name: path }); }
+    catch (e) { toast(errMsg(e), 1); }
+  },
+  async lReset(path) {
+    const lists = { ...(S.lists || {}) }, st = { ...(S.listStrict || {}) }; delete lists[path]; delete st[path];
+    try { await B.set("settings", "lists", { lists, strict: st, at: nowISO(), by: S.me.hoTen }); S.lists = lists; S.listStrict = st; closeModal(); render(); toast("Đã khôi phục"); } catch (e) { toast(errMsg(e), 1); }
   },
   reloadLogs() { S.logs = null; render(); },
   changePw() { openChangePw(false); },
